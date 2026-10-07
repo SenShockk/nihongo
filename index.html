@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1f2937">
+<link rel="icon" href="icon-192.png"><title>Nihongo Study</title>
+<style>
+:root{--bg:#f4f5f7;--fg:#1a1d21;--card:#fff;--mut:#6b7280;--ac:#2563eb;--bd:#d9dce1}
+@media(prefers-color-scheme:dark){:root{--bg:#111418;--fg:#e8eaed;--card:#1b1f25;--mut:#9aa1ab;--ac:#6ea0ff;--bd:#2c323a}}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,sans-serif;padding-top:env(safe-area-inset-top)}
+#app{max-width:640px;margin:0 auto;padding:12px 12px 80px}
+h2{margin:8px 0}.mut{color:var(--mut);font-size:14px}
+.row{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:8px 0;cursor:pointer}
+.row .t{flex:1}.row b{font-weight:600}
+button,.btn{font:inherit;background:var(--ac);color:#fff;border:0;border-radius:8px;padding:10px 14px}
+button.sec{background:var(--card);color:var(--fg);border:1px solid var(--bd)}
+button:disabled{opacity:.4}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;background:none;color:var(--mut);border-radius:0;padding:14px}nav button.on{color:var(--ac);font-weight:700}
+.pill{background:var(--bd);border-radius:20px;padding:2px 8px;font-size:13px}.due{background:var(--ac);color:#fff}
+.cardbox{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:24px 16px;min-height:200px;text-align:center;margin:12px 0}
+.big{font-size:34px;margin:6px 0}.mid{font-size:22px;margin:4px 0}
+.grades{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.grades button{padding:10px 2px;font-size:14px}
+.grades small{display:block;opacity:.8}
+#viewer{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+#vbar{display:flex;gap:6px;align-items:center;padding:8px;border-bottom:1px solid var(--bd)}
+#vimg{flex:1;overflow:auto;background:#888;-webkit-overflow-scrolling:touch}#vimg img{display:block;background:#fff}
+#vfoot{padding:8px;border-top:1px solid var(--bd);padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+textarea{width:100%;min-height:70px;background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:8px;font:inherit;margin-bottom:6px}
+input[type=number]{width:70px;font:inherit;padding:6px}
+</style></head><body><div id="app"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LS=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};LS.set=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+let db,packs=[],tab='study',sess=null,V=null;
+const idbReq=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+async function initDB(){const r=indexedDB.open('nihongo',1);r.onupgradeneeded=()=>{r.result.createObjectStore('packs');r.result.createObjectStore('pages')};db=await idbReq(r);packs=await idbReq(db.transaction('packs').objectStore('packs').getAll());packs.sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id))}
+async function importPack(file){
+  const buf=await file.arrayBuffer();const hl=new DataView(buf).getUint32(0,true);
+  const meta=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,4,hl)));const base=4+hl;
+  const t=db.transaction(['pages','packs'],'readwrite');
+  meta.index.forEach(([o,l],i)=>t.objectStore('pages').put(new Blob([buf.slice(base+o,base+o+l)],{type:'image/webp'}),meta.id+':'+(meta.first+i)));
+  t.objectStore('packs').put(meta,meta.id);
+  await new Promise((res,rej)=>{t.oncomplete=res;t.onerror=t.onabort=()=>rej(t.error)});
+  await initDB();
+}
+async function delPack(id){const p=packs.find(x=>x.id===id);const t=db.transaction(['pages','packs'],'readwrite');for(let i=p.first;i<=p.last;i++)t.objectStore('pages').delete(id+':'+i);t.objectStore('packs').delete(id);await new Promise(r=>t.oncomplete=r);await initDB()}
+
+/* ---------- SRS (Anki-style SM-2) ---------- */
+const STEPS=[1,10];const DAY=86400000;
+const srs=()=>LS('srs',{});
+const def=()=>({t:0,st:0,e:2.5,iv:0,d:0});
+function dayAt(n){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d.getTime()}
+function sched(s0,g){
+  const s={...def(),...s0};const now=Date.now();
+  if(s.t===2){
+    if(g===1){s.e=Math.max(1.3,s.e-.2);s.t=1;s.st=0;s.iv=1;s.d=now+STEPS[0]*60000}
+    else{
+      let iv=s.iv;
+      if(g===2){iv=Math.max(iv+1,Math.round(iv*1.2));s.e=Math.max(1.3,s.e-.15)}
+      if(g===3)iv=Math.max(iv+1,Math.round(iv*s.e));
+      if(g===4){iv=Math.max(iv+1,Math.round(iv*s.e*1.3));s.e+=.15}
+      s.iv=iv;s.d=dayAt(iv)
+    }
+  }else{
+    if(g===1){s.t=1;s.st=0;s.d=now+STEPS[0]*60000}
+    else if(g===2){s.t=1;s.d=now+STEPS[s.st||0]*60000}
+    else if(g===3){s.st=(s.st||0)+1;if(s.st>=STEPS.length){s.t=2;s.iv=Math.max(1,s.iv||1);s.d=dayAt(s.iv)}else{s.t=1;s.d=now+STEPS[s.st]*60000}}
+    else{s.t=2;s.iv=4;s.d=dayAt(4)}
+  }
+  return s;
+}
+const fmtIv=(o,n)=>{if(n.t===1){const m=Math.round((n.d-Date.now())/60000);return m+'m'}const d=n.iv;return d>=365?(d/365).toFixed(1)+'y':d>=30?(d/30).toFixed(1)+'mo':d+'d'};
+const cardsOf=(p,unit)=>p.cards.filter(c=>unit==null||c.unit===unit).flatMap(c=>[{id:c.id+'a',c,dir:0},{id:c.id+'b',c,dir:1}]);
+function newBudget(pid){const n=LS('newcnt',{});const today=new Date().toDateString();if(n.day!==today)return LS('newlimit',20);return Math.max(0,LS('newlimit',20)-(n[pid]||0))}
+function bumpNew(pid){const n=LS('newcnt',{});const today=new Date().toDateString();if(n.day!==today){for(const k in n)delete n[k];n.day=today}n[pid]=(n[pid]||0)+1;LS.set('newcnt',n)}
+function buildQ(cards,pid){
+  const S=srs(),now=Date.now();const learn=[],rev=[],nw=[],ahead=[];
+  for(const c of cards){const s=S[c.id];
+    if(!s||s.t===0)nw.push(c);
+    else if(s.t===1){if(s.d<=now)learn.push(c);else if(s.d<=now+20*60000)ahead.push(c)}
+    else if(s.d<=now)rev.push(c)}
+  learn.sort((a,b)=>S[a.id].d-S[b.id].d);ahead.sort((a,b)=>S[a.id].d-S[b.id].d);
+  return{learn,rev,nw:nw.slice(0,newBudget(pid)),ahead,newAvail:nw.length}
+}
+const counts=q=>({n:q.nw.length,l:q.learn.length+q.ahead.length,r:q.rev.length});
+
+/* ---------- Views ---------- */
+function render(){
+  const a=$('#app');
+  let h='';
+  if(!packs.length&&tab!=='set')h=`<h2>No book yet</h2><p>Import your book file (<b>jfz1.pack</b>) in the Settings tab. Everything stays on this phone.</p><button onclick="go('set')">Open Settings</button>`;
+  else if(tab==='study')h=sess?viewSession():viewStudy();
+  else if(tab==='books')h=viewBooks();
+  else h=viewSet();
+  a.innerHTML=h+`<nav>${[['study','Study'],['books','Books'],['set','Settings']].map(([k,n])=>`<button class="${tab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</nav>`;
+}
+function go(t){tab=t;sess=null;render()}
+function viewStudy(){
+  let h='<h2>Vocabulary decks</h2><div class="mut">Cards come only from the book\'s vocabulary tables. Each word gives 2 cards: English → Japanese and Japanese → English.</div>';
+  for(const p of packs){
+    h+=`<h3>${esc(p.title)}</h3>`;
+    const all=cardsOf(p);const c=counts(buildQ(all,p.id));
+    h+=row(`<b>Whole book</b><div class="mut">${all.length} cards</div>`,c,`startSess('${p.id}')`);
+    const us=[...new Set(p.cards.map(c=>c.unit))];
+    for(const u of us){const cs=cardsOf(p,u);const k=counts(buildQ(cs,p.id));h+=row(`<b>${esc(p.units[u])}</b><div class="mut">${cs.length} cards</div>`,k,`startSess('${p.id}',${u})`)}
+  }
+  return h;
+}
+const row=(t,c,oc)=>`<div class="row" onclick="${oc}"><div class="t">${t}</div><span class="pill ${c.n?'due':''}" title="new">${c.n} new</span><span class="pill ${c.l+c.r?'due':''}">${c.l+c.r} due</span></div>`;
+function startSess(pid,unit){const p=packs.find(x=>x.id===pid);sess={p,cards:cardsOf(p,unit),show:false,done:0,title:unit==null?p.title:p.units[unit]};next()}
+function next(){const q=buildQ(sess.cards,sess.p.id);sess.q=q;sess.cur=q.learn[0]||q.rev[0]||q.nw[0]||q.ahead[0]||null;sess.show=false;render()}
+function viewSession(){
+  const s=sess,c=s.cur;const k=counts(s.q);
+  let h=`<div style="display:flex;gap:8px;align-items:center"><button class="sec" onclick="go('study')">←</button><b style="flex:1">${esc(s.title)}</b><span class="pill">${k.n} new · ${k.l} learn · ${k.r} review</span></div>`;
+  if(!c){const left=s.q.newAvail>s.q.nw.length;return h+`<div class="cardbox"><div class="mid">Done for now ✓</div><p class="mut">${s.done} cards reviewed.${left?' Daily new-card limit reached (change in Settings).':''}</p></div>`}
+  const w=c.c;
+  const front=c.dir===0?`<div class="mut">${esc(w.grp)}</div><div class="big">${esc(w.en)}</div>`:`<div class="mut">${esc(w.grp)}</div><div class="big">${esc(w.kana)}</div>${w.kanji!==w.kana?`<div class="mid">${esc(w.kanji)}</div>`:''}`;
+  const back=c.dir===0?`<div class="big">${esc(w.kana)}</div>${w.kanji!==w.kana?`<div class="mid">${esc(w.kanji)}</div>`:''}<div class="mut">${esc(w.pro)}</div>`:`<div class="big">${esc(w.en)}</div><div class="mut">${esc(w.pro)}</div>`;
+  h+=`<div class="cardbox">${front}${s.show?'<hr style="border:0;border-top:1px solid var(--bd);margin:14px 0">'+back+`<div class="mut" style="margin-top:12px"><a href="#" onclick="event.preventDefault();openPage('${s.p.id}',${w.page})" style="color:var(--ac)">see book page ${w.page}</a></div>`:''}</div>`;
+  if(!s.show)h+=`<button style="width:100%;padding:14px" onclick="sess.show=true;render()">Show answer</button>`;
+  else{const st=srs()[c.id]||def();h+='<div class="grades">'+[[1,'Again'],[2,'Hard'],[3,'Good'],[4,'Easy']].map(([g,n])=>`<button class="${g<3?'sec':''}" onclick="grade(${g})">${n}<small>${fmtIv(st,sched(st,g))}</small></button>`).join('')+'</div>'}
+  return h;
+}
+function grade(g){const c=sess.cur;const S=srs();const old=S[c.id];if(!old||old.t===0)bumpNew(sess.p.id);S[c.id]=sched(old||def(),g);LS.set('srs',S);sess.done++;next()}
+
+function viewBooks(){
+  let h='<h2>Books</h2>';const pos=LS('pos',{});
+  for(const p of packs){
+    h+=`<h3>${esc(p.title)}</h3>`;
+    if(pos[p.id])h+=`<button style="margin-bottom:6px" onclick="openPage('${p.id}',${pos[p.id]})">Continue: page ${pos[p.id]}</button>`;
+    p.units.forEach((u,i)=>{
+      const secs=p.sections.filter(s=>s.unit===i);const done=LS('done',{});
+      const open=LS('openu',{})[p.id+i];
+      h+=`<div class="row" onclick="toggleU('${p.id}',${i})"><div class="t"><b>${esc(u)}</b></div><span class="mut">${open?'▾':'▸'}</span></div>`;
+      if(open)for(const s of secs){const lab={lesson:'Lesson & grammar',activities:'Exercises',sentence:'Sentence building',answer:'Answer key',vocab:'Vocabulary'}[s.kind];
+        h+=`<div class="row" style="margin-left:18px" onclick="openPage('${p.id}',${s.start})"><div class="t">${lab}<div class="mut">pages ${s.start}–${s.end}</div></div>${s.kind==='activities'?`<label onclick="event.stopPropagation()"><input type="checkbox" ${done[p.id+s.id]?'checked':''} onchange="markDone('${p.id}${s.id}',this.checked)"> done</label>`:''}</div>`}
+    });
+  }
+  return h;
+}
+function toggleU(pid,i){const o=LS('openu',{});o[pid+i]=!o[pid+i];LS.set('openu',o);render()}
+function markDone(k,v){const d=LS('done',{});d[k]=v;LS.set('done',d)}
+
+/* ---------- Page viewer ---------- */
+let zoom=1,stack=[],curURL=null;
+function openPage(pid,page){V={p:packs.find(x=>x.id===pid),page};stack=[];let el=$('#viewer');if(!el){el=document.createElement('div');el.id='viewer';document.body.appendChild(el)}drawV()}
+function secAt(p,page){let r=null;for(const s of p.sections)if(s.start<=page)r=s;return r&&page<=r.end?r:null}
+async function drawV(){
+  const {p,page}=V;const s=secAt(p,page);const el=$('#viewer');
+  const pos=LS('pos',{});pos[p.id]=page;LS.set('pos',pos);
+  const nk=p.id+':'+page,notes=LS('notes',{});
+  let foot='';
+  if(s&&s.kind==='activities'){foot+=`<textarea id="note" placeholder="Your answers for page ${page} (saved on this phone)">${esc(notes[nk]||'')}</textarea>`;if(s.key!=null)foot+=`<button class="sec" onclick="jump(${p.sections[s.key].start})">Open answer key ↗</button> `}
+  if(stack.length)foot+=`<button class="sec" onclick="back()">← Back to exercises</button>`;
+  el.innerHTML=`<div id="vbar"><button class="sec" onclick="closeV()">✕</button><button class="sec" onclick="goP(-1)" ${page<=p.first?'disabled':''}>◀</button><b style="flex:1;text-align:center">${page} / ${p.last}</b><button class="sec" onclick="goP(1)" ${page>=p.last?'disabled':''}>▶</button><button class="sec" onclick="zoom=zoom>=2?1:zoom+.5;drawV()">🔍${zoom}×</button></div><div id="vimg"><img id="pi" alt="page ${page}" style="width:${zoom*100}%"></div><div id="vfoot">${foot||`<span class="mut">${s?esc(p.units[s.unit]):''}</span>`}</div>`;
+  const blob=await idbReq(db.transaction('pages').objectStore('pages').get(nk));
+  if(V.page!==page)return;
+  if(curURL)URL.revokeObjectURL(curURL);
+  if(blob){curURL=URL.createObjectURL(blob);$('#pi').src=curURL}
+  const ta=$('#note');if(ta){let t;ta.oninput=()=>{clearTimeout(t);t=setTimeout(()=>{const n=LS('notes',{});n[nk]=ta.value;LS.set('notes',n)},400)}}
+  let x0=null;const vi=$('#vimg');
+  vi.ontouchstart=e=>{x0=e.touches.length===1?e.touches[0].clientX:null};
+  vi.ontouchend=e=>{if(x0==null||zoom>1)return;const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>90)goP(dx<0?1:-1)};
+}
+function goP(d){V.page=Math.min(V.p.last,Math.max(V.p.first,V.page+d));drawV()}
+function jump(pg){stack.push(V.page);V.page=pg;drawV()}
+function back(){V.page=stack.pop();drawV()}
+function closeV(){const el=$('#viewer');if(el)el.remove();V=null;if(curURL){URL.revokeObjectURL(curURL);curURL=null}render()}
+
+/* ---------- Settings ---------- */
+function viewSet(){
+  return `<h2>Settings</h2>
+  <h3>Books on this phone</h3>${packs.map(p=>`<div class="row"><div class="t"><b>${esc(p.title)}</b><div class="mut">${p.cards.length} words · pages ${p.first}–${p.last}</div></div><button class="sec" onclick="rmPack('${p.id}')">Delete</button></div>`).join('')||'<p class="mut">None yet.</p>'}
+  <p><label class="btn" style="display:inline-block">Import book file (.pack)<input type="file" style="display:none" onchange="doImport(this.files[0])"></label></p><div id="msg" class="mut"></div>
+  <h3>Study</h3><p>New cards per day (per book): <input type="number" min="0" max="200" value="${LS('newlimit',20)}" onchange="LS.set('newlimit',Math.max(0,+this.value||0))"></p>
+  <h3>Backup</h3><p class="mut">Your progress (card schedule, notes, ticks) lives only on this phone. Export a backup now and then.</p>
+  <button onclick="exportBk()">Export backup</button> <label class="btn" style="display:inline-block;background:var(--card);color:var(--fg);border:1px solid var(--bd)">Restore backup<input type="file" style="display:none" onchange="importBk(this.files[0])"></label>
+  <h3>Reset</h3><button class="sec" onclick="if(confirm('Erase ALL progress and notes?')){['srs','notes','done','pos','newcnt'].forEach(k=>localStorage.removeItem(k));render()}">Erase progress</button>`;
+}
+async function doImport(f){if(!f)return;$('#msg').textContent='Importing… (can take a few seconds)';try{await importPack(f);render()}catch(e){$('#msg').textContent='Failed: '+e.message}}
+async function rmPack(id){if(confirm('Delete this book from the phone? Your progress stays.')){await delPack(id);render()}}
+function exportBk(){const d={srs:LS('srs',{}),notes:LS('notes',{}),done:LS('done',{}),pos:LS('pos',{})};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));a.download='nihongo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+async function importBk(f){if(!f)return;try{const d=JSON.parse(await f.text());for(const k of['srs','notes','done','pos'])if(d[k])LS.set(k,d[k]);alert('Restored.');render()}catch(e){alert('Not a valid backup file.')}}
+
+initDB().then(()=>{render();navigator.storage?.persist?.()});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script></body></html>
