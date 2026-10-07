@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-visual">
 <link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1f2937">
 <link rel="icon" href="icon-192.png"><title>Nihongo Study</title>
 <style>
@@ -153,7 +153,8 @@ function toggleU(pid,i){const o=LS('openu',{});o[pid+i]=!o[pid+i];LS.set('openu'
 function markDone(k,v){const d=LS('done',{});d[k]=v;LS.set('done',d)}
 
 /* ---------- Page viewer ---------- */
-let zoom=1,stack=[],curURL=null,bigNote=false;
+let zoom=1,stack=[],curURL=null,bigNote=false,lastResize=0;
+addEventListener('resize',()=>lastResize=Date.now());if(window.visualViewport)visualViewport.addEventListener('resize',()=>lastResize=Date.now());
 function openPage(pid,page){V={p:packs.find(x=>x.id===pid),page};stack=[];let el=$('#viewer');if(!el){el=document.createElement('div');el.id='viewer';document.body.appendChild(el)}drawV()}
 function secAt(p,page){let r=null;for(const s of p.sections)if(s.start<=page)r=s;return r&&page<=r.end?r:null}
 async function drawV(){
@@ -161,7 +162,7 @@ async function drawV(){
   const pos=LS('pos',{});pos[p.id]=page;LS.set('pos',pos);
   const nk=p.id+':'+page,notes=LS('notes',{});
   let foot='';
-  if(s&&s.kind==='activities'){const A=getAns(p,page,nk);foot+=A.l.map((lb,i)=>`<div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px"><b style="min-width:26px;padding-top:8px">${lb}.</b><textarea class="ans" data-i="${i}" rows="1" style="min-height:42px;margin:0">${esc(A.v[i]||'')}</textarea></div>`).join('')+`<button class="sec" onclick="ansN(1)">＋ answer</button> <button class="sec" onclick="ansN(-1)">－</button> `;if(s.key!=null)foot+=`<button class="sec" onclick="jump(${p.sections[s.key].start})">Open answer key ↗</button> `;if(notes[nk])foot+=`<div class="mut" style="margin-top:6px">Earlier free-text note:</div><textarea id="note">${esc(notes[nk])}</textarea>`}
+  if(s&&s.kind==='activities'){const A=getAns(p,page,nk);foot+=A.l.map((lb,i)=>`<div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px"><b style="min-width:26px;padding-top:8px">${lb}.</b><textarea class="ans" data-i="${i}" rows="1" spellcheck="false" autocomplete="off" autocapitalize="off" style="min-height:42px;margin:0">${esc(A.v[i]||'')}</textarea></div>`).join('')+`<button class="sec" onclick="ansN(1)">＋ answer</button> <button class="sec" onclick="ansN(-1)">－</button> `;if(s.key!=null)foot+=`<button class="sec" onclick="jump(${p.sections[s.key].start})">Open answer key ↗</button> `;if(notes[nk])foot+=`<div class="mut" style="margin-top:6px">Earlier free-text note:</div><textarea id="note">${esc(notes[nk])}</textarea>`}
   if(stack.length)foot+=`<button class="sec" onclick="back()">← Back to exercises</button>`;
   el.innerHTML=`<div id="vbar"><button class="sec" onclick="closeV()">✕</button><button class="sec" onclick="goP(-1)" ${page<=p.first?'disabled':''}>◀</button><b style="flex:1;text-align:center">${page} / ${p.last}</b><button class="sec" onclick="goP(1)" ${page>=p.last?'disabled':''}>▶</button><button class="sec" onclick="zoom=zoom>=2?1:zoom+.5;drawV()">🔍${zoom}×</button></div><div id="vimg"><img id="pi" alt="page ${page}" style="width:${zoom*100}%"></div><div id="vfoot">${foot||`<span class="mut">${s?esc(p.units[s.unit]):''}</span>`}</div>`;
   const blob=await idbReq(db.transaction('pages').objectStore('pages').get(nk));
@@ -169,7 +170,7 @@ async function drawV(){
   if(curURL)URL.revokeObjectURL(curURL);
   if(blob){curURL=URL.createObjectURL(blob);$('#pi').src=curURL}
   const A2=getAns(p,page,nk);const grow=t=>{t.style.height='auto';t.style.height=Math.min(t.scrollHeight+2,innerHeight*.3)+'px'};
-  document.querySelectorAll('textarea.ans').forEach(t=>{grow(t);t.oninput=()=>{grow(t);A2.v[+t.dataset.i]=t.value;clearTimeout(window._st);window._st=setTimeout(()=>saveAns(nk,A2),300)};t.onblur=()=>saveAns(nk,A2)});
+  document.querySelectorAll('textarea.ans').forEach(t=>{grow(t);t.oninput=()=>{grow(t);A2.v[+t.dataset.i]=t.value;clearTimeout(window._st);window._st=setTimeout(()=>saveAns(nk,A2),300)};t.onblur=()=>{saveAns(nk,A2);if(Date.now()-lastResize<700)setTimeout(()=>{if(!document.activeElement||document.activeElement===document.body)t.focus()},80)}});
   const ta=$('#note');if(ta)ta.oninput=()=>{const n=LS('notes',{});n[nk]=ta.value;LS.set('notes',n)};
   let x0=null;const vi=$('#vimg');
   vi.ontouchstart=e=>{x0=e.touches.length===1?e.touches[0].clientX:null};
