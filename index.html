@@ -100,11 +100,14 @@ function render(){
   a.innerHTML=h+`<nav>${[['study','Study'],['books','Books'],['set','Settings']].map(([k,n])=>`<button class="${tab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</nav>`;
 }
 function go(t){tab=t;sess=null;render()}
+const isOpenB=(k,p)=>{const v=LS('openb',{})[k+p.id];return v===undefined?packs.length===1:v};
+function toggleB(k,id){const o=LS('openb',{});o[k+id]=!isOpenB(k,{id});LS.set('openb',o);render()}
+const bookHead=(k,p,c)=>`<div class="row" style="padding:18px 14px;margin-top:14px" onclick="toggleB('${k}','${p.id}')"><div class="t"><b style="font-size:18px">${esc(p.title)}</b></div>${c?`<span class="pill ${c.n?'due':''}">${c.n} new</span><span class="pill ${c.l+c.r?'due':''}">${c.l+c.r} due</span>`:''}<span style="font-size:22px;padding-left:6px">${isOpenB(k,p)?'▾':'▸'}</span></div>`;
 function viewStudy(){
   let h='<h2>Vocabulary decks</h2><div class="mut">Cards come only from the book\'s vocabulary tables. Each word gives 2 cards: English → Japanese and Japanese → English.</div>';
   for(const p of packs){
-    h+=`<h3>${esc(p.title)}</h3>`;
     const all=cardsOf(p);const c=counts(buildQ(all,p));
+    h+=bookHead('s',p,c);if(!isOpenB('s',p))continue;
     h+=row(`<b>Whole book</b><div class="mut">${all.length} cards</div>`,c,`startSess('${p.id}')`);
     const us=[...new Set(p.cards.map(c=>c.unit))];
     for(const u of us){const cs=cardsOf(p,u);const k=counts(buildQ(cs,p));h+=row(`<b>${isLocked(p,u)?'🔒 ':''}${esc(p.units[u])}</b><div class="mut">${cs.length} cards</div>`,k,`startSess('${p.id}',${u})`)}
@@ -137,7 +140,7 @@ function speak(txt){
 function viewBooks(){
   let h='<h2>Books</h2>';const pos=LS('pos',{});
   for(const p of packs){
-    h+=`<h3>${esc(p.title)}</h3>`;
+    h+=bookHead('b',p);if(!isOpenB('b',p))continue;
     if(pos[p.id])h+=`<button style="margin-bottom:6px" onclick="openPage('${p.id}',${pos[p.id]})">Continue: page ${pos[p.id]}</button>`;
     p.units.forEach((u,i)=>{
       const secs=p.sections.filter(s=>s.unit===i);const done=LS('done',{});
