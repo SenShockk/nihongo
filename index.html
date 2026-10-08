@@ -35,7 +35,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const LS=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};LS.set=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 let db,packs=[],tab='study',sess=null,V=null;
 const idbReq=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-async function initDB(){const r=indexedDB.open('nihongo',1);r.onupgradeneeded=()=>{r.result.createObjectStore('packs');r.result.createObjectStore('pages')};db=await idbReq(r);packs=await idbReq(db.transaction('packs').objectStore('packs').getAll());packs.sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id))}
+async function initDB(){const r=indexedDB.open('nihongo',1);r.onupgradeneeded=()=>{r.result.createObjectStore('packs');r.result.createObjectStore('pages')};db=await idbReq(r);packs=await idbReq(db.transaction('packs').objectStore('packs').getAll());packs.sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));for(const k in dupCache)delete dupCache[k]}
 async function importPack(file){
   const buf=await file.arrayBuffer();const hl=new DataView(buf).getUint32(0,true);
   const meta=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,4,hl)));const base=4+hl;
@@ -72,7 +72,34 @@ function sched(s0,g){
   return s;
 }
 const fmtIv=(o,n)=>{if(n.t===1){const m=Math.round((n.d-Date.now())/60000);return m+'m'}const d=n.iv;return d>=365?(d/365).toFixed(1)+'y':d>=30?(d/30).toFixed(1)+'mo':d+'d'};
-const cardsOf=(p,unit)=>p.cards.filter(c=>unit==null||c.unit===unit).flatMap(c=>[{id:c.id+'a',c,dir:0},{id:c.id+'b',c,dir:1}]);
+const STOP=new Set(['the','and','for','with','from','that','this','what','are','not','one']);
+const kh=s=>s.replace(/[\u30a1-\u30f6]/g,c=>String.fromCharCode(c.charCodeAt(0)-96));
+const nrm=s=>kh(String(s||'').replace(/[\s・･·()（）\[\]]/g,''));
+const kanaOnly=s=>/^[\u3041-\u309fー]+$/.test(s);
+const toks=s=>new Set((String(s||'').toLowerCase().match(/[a-z]{3,}/g)||[]).filter(w=>!STOP.has(w)).map(w=>w.replace(/s$/,'')));
+const isChar=c=>/^(Hiragana|Katakana|Compound hiragana|Compound katakana|Unique compounds)$/.test(c.grp);
+const formsOf=c=>{const f=new Set();for(const x of[c.kana,c.kanji]){const n=nrm(x);if(n)f.add(n)}const pn=nrm(c.pro);if(pn&&kanaOnly(pn))f.add(pn);return f};
+const dupCache={};
+function dupsOf(p){
+  if(dupCache[p.id])return dupCache[p.id];
+  const idx=new Map(),out=new Set();
+  for(const q of packs){if(q.id===p.id)break;for(const c of q.cards){if(isChar(c))continue;const t=toks(c.en);for(const f of formsOf(c)){if(!idx.has(f))idx.set(f,[]);idx.get(f).push(t)}}}
+  const own=new Map(),hit=(m,f,t)=>{const L=m.get(f);return L&&L.some(u=>!u.size||!t.size||[...t].some(w=>u.has(w)))};
+  for(const c of p.cards){if(isChar(c))continue;const t=toks(c.en),fs=[...formsOf(c)];
+    if(fs.some(f=>hit(idx,f,t)||hit(own,f,t))){out.add(c.id);continue}
+    for(const f of fs){if(!own.has(f))own.set(f,[]);own.get(f).push(t)}}
+  return dupCache[p.id]=out;
+}
+const BUILTIN={'v60-2':{en:'this one (three or more)'},'v60-3':{en:'that one (three or more)'},'v60-4':{en:'that one over there (three or more)'},'v60-6':{en:'this one (two items)'},'v60-7':{en:'that one (two items)'},'v60-8':{en:'that one over there (two items)'}};
+const edits=()=>LS('edits',{});
+const eff=c=>({...c,...(BUILTIN[c.id]||{}),...(edits()[c.id]||{})});
+function editCard(){const w=eff(sess.cur.c);closeEd();const el=document.createElement('div');el.id='editor';el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px';
+  const f=(k,l)=>`<label class="mut">${l}</label><input id="ed-${k}" value="${esc(w[k])}" style="width:100%;font:inherit;padding:8px;margin:2px 0 10px;background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:8px">`;
+  el.innerHTML=`<div style="background:var(--bg);border-radius:12px;padding:16px;width:100%;max-width:420px">${f('en','English')}${f('kana','Japanese (big text)')}${f('kanji','Kanji (same as Japanese if none)')}${f('pro','Progressive / reading')}<div style="display:flex;gap:8px"><button onclick="saveEdit()">Save</button><button class="sec" onclick="closeEd()">Cancel</button><button class="sec" style="margin-left:auto" onclick="resetEdit()">Reset</button></div></div>`;document.body.appendChild(el)}
+function saveEdit(){const c=sess.cur.c,o={...c,...(BUILTIN[c.id]||{})},E=edits(),n={};for(const k of['en','kana','kanji','pro']){const v=$('#ed-'+k).value.trim();if(v!==o[k])n[k]=v}if(Object.keys(n).length)E[c.id]=n;else delete E[c.id];LS.set('edits',E);closeEd();render()}
+function resetEdit(){const E=edits();delete E[sess.cur.c.id];LS.set('edits',E);closeEd();render()}
+function closeEd(){const e=$('#editor');if(e)e.remove()}
+const cardsOf=(p,unit)=>p.cards.filter(c=>(unit==null||c.unit===unit)&&!(LS('hidedup',true)&&dupsOf(p).has(c.id))).flatMap(c=>c.nd?[{id:c.id+'b',c,dir:1}]:[{id:c.id+'a',c,dir:0},{id:c.id+'b',c,dir:1}]);
 function newBudget(pid){const n=LS('newcnt',{});const today=new Date().toDateString();if(n.day!==today)return LS('newlimit',20);return Math.max(0,LS('newlimit',20)-(n[pid]||0))}
 function bumpNew(pid){const n=LS('newcnt',{});const today=new Date().toDateString();if(n.day!==today){for(const k in n)delete n[k];n.day=today}n[pid]=(n[pid]||0)+1;LS.set('newcnt',n)}
 function firstOpen(p){const S=srs();for(const u of [...new Set(p.cards.map(c=>c.unit))])if(cardsOf(p,u).some(c=>!S[c.id]||S[c.id].t===0))return u;return Infinity}
@@ -108,6 +135,7 @@ function viewStudy(){
   for(const p of packs){
     const all=cardsOf(p);const c=counts(buildQ(all,p));
     h+=bookHead('s',p,c);if(!isOpenB('s',p))continue;
+    {const hd=LS('hidedup',true)?dupsOf(p).size:0;if(hd)h+=`<div class="mut" style="margin:-2px 4px 4px">${hd} words hidden because they already exist in an earlier book or earlier in this one.</div>`}
     h+=row(`<b>Whole book</b><div class="mut">${all.length} cards</div>`,c,`startSess('${p.id}')`);
     const us=[...new Set(p.cards.map(c=>c.unit))];
     for(const u of us){const cs=cardsOf(p,u);const k=counts(buildQ(cs,p));h+=row(`<b>${isLocked(p,u)?'🔒 ':''}${esc(p.units[u])}</b><div class="mut">${cs.length} cards</div>`,k,`startSess('${p.id}',${u})`)}
@@ -121,11 +149,11 @@ function viewSession(){
   const s=sess,c=s.cur;const k=counts(s.q);
   let h=`<div style="display:flex;gap:8px;align-items:center"><button class="sec" onclick="go('study')">←</button><b style="flex:1">${esc(s.title)}</b><span class="pill">${k.n} new · ${k.l} learn · ${k.r} review</span></div>`;
   if(!c){const left=s.q.newAvail>s.q.nw.length,lk=isLocked(s.p,s.unit);return h+`<div class="cardbox"><div class="mid">Done for now ✓</div><p class="mut">${s.done} cards reviewed.${lk?' New cards in this chapter unlock once all cards of the earlier chapter(s) have been introduced.':left?' Daily new-card limit reached (change in Settings).':''}</p></div>`}
-  const w=c.c;
+  const w=eff(c.c);
   const front=c.dir===0?`<div class="mut">${esc(w.grp)}</div><div class="big">${esc(w.en)}</div>`:`<div class="mut">${esc(w.grp)}</div><div class="big">${esc(w.kana)}</div>${w.kanji!==w.kana?`<div class="mid">${esc(w.kanji)}</div>`:''}`;
   const back=c.dir===0?`<div class="big">${esc(w.kana)}</div>${w.kanji!==w.kana?`<div class="mid">${esc(w.kanji)}</div>`:''}<div class="mut">${esc(w.pro)}</div>`:`<div class="big">${esc(w.en)}</div><div class="mut">${esc(w.pro)}</div>`;
-  const SB='<div><button class="sec" onclick="speak(sess.cur.c.kana)">🔊</button></div>';
-  h+=`<div class="cardbox">${front}${c.dir===1?SB:''}${s.show?'<hr style="border:0;border-top:1px solid var(--bd);margin:14px 0">'+back+(c.dir===0?SB:'')+`<div class="mut" style="margin-top:12px"><a href="#" onclick="event.preventDefault();openPage('${s.p.id}',${w.page})" style="color:var(--ac)">see book page ${w.page}</a></div>`:''}</div>`;
+  const SB='<div><button class="sec" onclick="speak(eff(sess.cur.c).kana)">🔊</button></div>';
+  h+=`<div class="cardbox">${front}${c.dir===1?SB:''}${s.show?'<hr style="border:0;border-top:1px solid var(--bd);margin:14px 0">'+back+(c.dir===0?SB:'')+`<div class="mut" style="margin-top:12px"><a href="#" onclick="event.preventDefault();openPage('${s.p.id}',${w.page})" style="color:var(--ac)">see book page ${w.page}</a> · <a href="#" onclick="event.preventDefault();editCard()" style="color:var(--ac)">✎ edit</a></div>`:''}</div>`;
   if(!s.show)h+=`<button style="width:100%;padding:14px" onclick="sess.show=true;render()">Show answer</button>`;
   else{const st=srs()[c.id]||def();h+='<div class="grades">'+[[1,'Again'],[2,'Hard'],[3,'Good'],[4,'Easy']].map(([g,n])=>`<button class="${g<3?'sec':''}" onclick="grade(${g})">${n}<small>${fmtIv(st,sched(st,g))}</small></button>`).join('')+'</div>'}
   return h;
@@ -193,14 +221,14 @@ function viewSet(){
   <h3>Books on this phone</h3>${packs.map(p=>`<div class="row"><div class="t"><b>${esc(p.title)}</b><div class="mut">${p.cards.length} words · pages ${p.first}–${p.last}</div></div><button class="sec" onclick="rmPack('${p.id}')">Delete</button></div>`).join('')||'<p class="mut">None yet.</p>'}
   <p><label class="btn" style="display:inline-block">Import book file (.pack)<input type="file" style="display:none" onchange="doImport(this.files[0])"></label></p><div id="msg" class="mut"></div>
   <h3>Study</h3><p>New cards per day (per book): <input type="number" min="0" max="200" value="${LS('newlimit',20)}" onchange="LS.set('newlimit',Math.max(0,+this.value||0))"></p>
-  <p><label><input type="checkbox" ${LS('gate',false)?'checked':''} onchange="LS.set('gate',this.checked)"> Unlock chapters in order (new cards of a chapter only after every card of the earlier chapters has been introduced)</label></p><h3>Backup</h3><p class="mut">Your progress (card schedule, notes, ticks) lives only on this phone. Export a backup now and then.</p>
+  <p><label><input type="checkbox" ${LS('gate',false)?'checked':''} onchange="LS.set('gate',this.checked)"> Unlock chapters in order (new cards of a chapter only after every card of the earlier chapters has been introduced)</label></p><p><label><input type="checkbox" ${LS('hidedup',true)?'checked':''} onchange="LS.set('hidedup',this.checked);render()"> Hide cards whose word already exists in an earlier book</label></p><h3>Backup</h3><p class="mut">Your progress (card schedule, notes, ticks) lives only on this phone. Export a backup now and then.</p>
   <button onclick="exportBk()">Export backup</button> <label class="btn" style="display:inline-block;background:var(--card);color:var(--fg);border:1px solid var(--bd)">Restore backup<input type="file" style="display:none" onchange="importBk(this.files[0])"></label>
-  <h3>Reset</h3><button class="sec" onclick="if(confirm('Erase ALL progress and notes?')){['srs','notes','ans','done','pos','newcnt'].forEach(k=>localStorage.removeItem(k));render()}">Erase progress</button>`;
+  <h3>Reset</h3><button class="sec" onclick="if(confirm('Erase ALL progress and notes?')){['srs','notes','ans','edits','done','pos','newcnt'].forEach(k=>localStorage.removeItem(k));render()}">Erase progress</button>`;
 }
 async function doImport(f){if(!f)return;$('#msg').textContent='Importing… (can take a few seconds)';try{await importPack(f);render()}catch(e){$('#msg').textContent='Failed: '+e.message}}
 async function rmPack(id){if(confirm('Delete this book from the phone? Your progress stays.')){await delPack(id);render()}}
-function exportBk(){const d={srs:LS('srs',{}),notes:LS('notes',{}),ans:LS('ans',{}),done:LS('done',{}),pos:LS('pos',{})};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));a.download='nihongo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
-async function importBk(f){if(!f)return;try{const d=JSON.parse(await f.text());for(const k of['srs','notes','ans','done','pos'])if(d[k])LS.set(k,d[k]);alert('Restored.');render()}catch(e){alert('Not a valid backup file.')}}
+function exportBk(){const d={srs:LS('srs',{}),notes:LS('notes',{}),ans:LS('ans',{}),edits:LS('edits',{}),done:LS('done',{}),pos:LS('pos',{})};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));a.download='nihongo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+async function importBk(f){if(!f)return;try{const d=JSON.parse(await f.text());for(const k of['srs','notes','ans','edits','done','pos'])if(d[k])LS.set(k,d[k]);alert('Restored.');render()}catch(e){alert('Not a valid backup file.')}}
 
 initDB().then(()=>{render();navigator.storage?.persist?.()});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
