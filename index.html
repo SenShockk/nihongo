@@ -174,7 +174,7 @@ function viewBooks(){
       const secs=p.sections.filter(s=>s.unit===i);const done=LS('done',{});
       const open=LS('openu',{})[p.id+i];
       h+=`<div class="row" onclick="toggleU('${p.id}',${i})"><div class="t"><b>${esc(u)}</b></div><span class="mut">${open?'▾':'▸'}</span></div>`;
-      if(open)for(const s of secs){const lab={lesson:'Lesson & grammar',activities:'Exercises',sentence:'Sentence building',answer:'Answer key',vocab:'Vocabulary',ref:'Reference'}[s.kind];
+      if(open)for(const s of secs){const lab=s.label||{lesson:'Lesson & grammar',activities:'Exercises',sentence:'Sentence building',answer:'Answer key',vocab:'Vocabulary',ref:'Reference'}[s.kind];
         h+=`<div class="row" style="margin-left:18px" onclick="openPage('${p.id}',${s.start})"><div class="t">${lab}<div class="mut">pages ${s.start}–${s.end}</div></div>${s.kind==='activities'?`<label onclick="event.stopPropagation()"><input type="checkbox" ${done[p.id+s.id]?'checked':''} onchange="markDone('${p.id}${s.id}',this.checked)"> done</label>`:''}</div>`}
     });
   }
