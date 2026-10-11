@@ -56,19 +56,34 @@ input[type=number]{width:70px;padding:6px}select{padding:6px 8px}
 .kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd);font-size:14px}.kv:last-child{border:0}
 .pb{margin-bottom:16px}.pb:last-of-type{margin-bottom:4px}.pbh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}.pbh b{font-size:15px}.pbh .pc{font-size:22px;font-weight:700;letter-spacing:-.5px}
 .sub{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:8px 0 4px}
+#exam{position:fixed;inset:0;background:var(--bg);z-index:12;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);overscroll-behavior:contain}
+#xbar{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--bd);background:var(--card)}
+#xbody{flex:1;overflow:auto;padding:12px 14px calc(28px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+#xi{flex:1;overflow:auto;background:#06090e;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}#xi img{display:block;background:#fff}
+#xb{border-top:1px solid var(--bd);background:var(--card);padding:8px 10px calc(8px + env(safe-area-inset-bottom));max-height:42vh;overflow:auto;overscroll-behavior:contain}
+.xnav{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px}
+.qr{display:flex;align-items:center;gap:8px;margin:6px 0}.qr b{min-width:36px;text-align:right;font-size:15px}
+.bub{width:44px;height:44px;border-radius:50%;padding:0;background:var(--card2);border:1.5px solid var(--bd);color:var(--fg);font-size:16px;font-weight:600}
+.bub.on{background:linear-gradient(135deg,var(--ac),var(--ac2));border-color:transparent;color:#fff}
+#xa{padding:6px 8px;border-bottom:1px solid var(--bd);background:var(--card2)}
+.xtabs{display:flex;gap:6px;margin-bottom:6px}.xtabs button{flex:1;padding:7px 4px;font-size:13px;background:var(--card);color:var(--mut);border:1px solid var(--bd);font-weight:600}.xtabs button.on{background:rgba(122,162,255,.18);color:var(--ac);border-color:var(--ac)}
+.xplay{display:flex;align-items:center;gap:8px}.xplay button{padding:9px 10px;white-space:nowrap;min-width:46px}.xplay span{white-space:nowrap;font-size:12px}.xplay input[type=range]{flex:1;padding:0;border:0;background:none;box-shadow:none}
+.tw{color:var(--warn)!important}.tb{color:var(--bad)!important}
+.rsum{text-align:center;padding:8px 0 2px}.rsum b{font-size:46px;display:block;letter-spacing:-1px}
+.chip{display:inline-block;background:var(--card2);border:1px solid var(--bd);border-radius:10px;padding:3px 9px;margin:3px;font-size:14px}.chip.ok{border-color:var(--ok);color:var(--ok)}.chip.no{border-color:var(--bad);color:var(--bad)}
 </style></head><body><div id="app"></div>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const LS=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};LS.set=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
-let db,packs=[],tab='study',sess=null,V=null;
+let db,packs=[],exams=[],tab='study',sess=null,V=null;
 const idbReq=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-async function initDB(){const r=indexedDB.open('nihongo',1);r.onupgradeneeded=()=>{r.result.createObjectStore('packs');r.result.createObjectStore('pages')};db=await idbReq(r);packs=await idbReq(db.transaction('packs').objectStore('packs').getAll());packs.sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));for(const k in dupCache)delete dupCache[k]}
+async function initDB(){const r=indexedDB.open('nihongo',1);r.onupgradeneeded=()=>{r.result.createObjectStore('packs');r.result.createObjectStore('pages')};db=await idbReq(r);const allp=await idbReq(db.transaction('packs').objectStore('packs').getAll());packs=allp.filter(p=>!p.type);exams=allp.filter(p=>p.type==='exam');packs.sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));for(const k in dupCache)delete dupCache[k]}
 async function importPack(file){
   const buf=await file.arrayBuffer();const hl=new DataView(buf).getUint32(0,true);
   const meta=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,4,hl)));const base=4+hl;
   const t=db.transaction(['pages','packs'],'readwrite');
-  meta.index.forEach(([o,l],i)=>t.objectStore('pages').put(new Blob([buf.slice(base+o,base+o+l)],{type:'image/webp'}),meta.id+':'+(meta.first+i)));
+  meta.index.forEach(([o,l,mt],i)=>t.objectStore('pages').put(new Blob([buf.slice(base+o,base+o+l)],{type:mt||'image/webp'}),meta.id+':'+(meta.type==='exam'?meta.keys[i]:meta.first+i)));
   t.objectStore('packs').put(meta,meta.id);
   await new Promise((res,rej)=>{t.oncomplete=res;t.onerror=t.onabort=()=>rej(t.error)});
   await initDB();
@@ -323,17 +338,114 @@ function closeV(){document.documentElement.classList.remove('vopen');const el=$(
 function viewSet(){
   return `<h2>Settings</h2>
   <h3>Books on this phone</h3>${packs.map(p=>`<div class="row"><div class="t"><b>${esc(p.title)}</b><div class="mut">${p.cards.length} words · pages ${rng(p,Math.max(p.first,poff(p)+1),p.last)}</div></div><button class="sec" onclick="rmPack('${p.id}')">Delete</button></div>`).join('')||'<p class="mut">None yet.</p>'}
-  <p><label class="btn" style="display:inline-block">Import book file (.pack)<input type="file" style="display:none" onchange="doImport(this.files[0])"></label></p><div id="msg" class="mut"></div>
+  <h3>JLPT practice exams</h3>${exams.map(e=>`<div class="row" onclick="openExams()"><div class="t"><b>${esc(e.title)}</b><div class="mut">${e.sections.length} sections · timed · scored automatically</div></div><span class="mut">▸</span></div>`).join('')||'<p class="mut">None yet. Import an exam file (.pack) with the button below.</p>'}
+  <p><label class="btn" style="display:inline-block">Import book or exam file (.pack)<input type="file" style="display:none" onchange="doImport(this.files[0])"></label></p><div id="msg" class="mut"></div>
   <h3>Appearance</h3><p>Theme: <select onchange="LS.set('theme',this.value);applyTheme()"><option value="dark" ${LS('theme','dark')==='dark'?'selected':''}>Dark</option><option value="light" ${LS('theme','dark')==='light'?'selected':''}>Light</option></select></p><h3>Study</h3><p>New cards per day (per book): <input type="number" min="0" max="200" value="${LS('newlimit',20)}" onchange="LS.set('newlimit',Math.max(0,+this.value||0))"></p>
   <p><label><input type="checkbox" ${LS('gate',false)?'checked':''} onchange="LS.set('gate',this.checked)"> Unlock chapters in order (new cards of a chapter only after every card of the earlier chapters has been introduced)</label></p><p><label><input type="checkbox" ${LS('hidedup',true)?'checked':''} onchange="LS.set('hidedup',this.checked);render()"> Hide cards whose word already exists in an earlier book</label></p><h3>Backup</h3><p class="mut">Your progress (card schedule, notes, ticks) lives only on this phone. Export a backup now and then.</p>
   <button onclick="exportBk()">Export backup</button> <label class="btn" style="display:inline-block;background:var(--card);color:var(--fg);border:1px solid var(--bd)">Restore backup<input type="file" style="display:none" onchange="importBk(this.files[0])"></label>
-  <h3>Reset</h3><button class="sec" onclick="if(confirm('Erase ALL progress and notes?')){['srs','notes','ans','edits','log','done','pos','newcnt'].forEach(k=>localStorage.removeItem(k));render()}">Erase progress</button>`;
+  <h3>Reset</h3><button class="sec" onclick="if(confirm('Erase ALL progress and notes?')){['srs','notes','ans','edits','log','exres','done','pos','newcnt'].forEach(k=>localStorage.removeItem(k));render()}">Erase progress</button>`;
 }
 async function doImport(f){if(!f)return;$('#msg').textContent='Importing… (can take a few seconds)';try{await importPack(f);render()}catch(e){$('#msg').textContent='Failed: '+e.message}}
 async function rmPack(id){if(confirm('Delete this book from the phone? Your progress stays.')){await delPack(id);render()}}
-function exportBk(){const d={srs:LS('srs',{}),notes:LS('notes',{}),ans:LS('ans',{}),edits:LS('edits',{}),log:LS('log',{}),done:LS('done',{}),pos:LS('pos',{})};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));a.download='nihongo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
-async function importBk(f){if(!f)return;try{const d=JSON.parse(await f.text());for(const k of['srs','notes','ans','edits','log','done','pos'])if(d[k])LS.set(k,d[k]);alert('Restored.');render()}catch(e){alert('Not a valid backup file.')}}
+function exportBk(){const d={srs:LS('srs',{}),notes:LS('notes',{}),ans:LS('ans',{}),edits:LS('edits',{}),log:LS('log',{}),exres:LS('exres',{}),done:LS('done',{}),pos:LS('pos',{})};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));a.download='nihongo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+async function importBk(f){if(!f)return;try{const d=JSON.parse(await f.text());for(const k of['srs','notes','ans','edits','log','exres','done','pos'])if(d[k])LS.set(k,d[k]);alert('Restored.');render()}catch(e){alert('Not a valid backup file.')}}
 
+/* ---------- JLPT practice exams ---------- */
+let EX=null,exAud=null,exTick=null,exURL=null,audURL=null;
+const exKey=(ex,sec)=>ex.id+'|'+sec.id;
+const exBlob=(id,key)=>idbReq(db.transaction('pages').objectStore('pages').get(id+':'+key));
+function openExams(){let el=$('#exam');if(!el){el=document.createElement('div');el.id='exam';document.body.appendChild(el)}document.documentElement.classList.add('vopen');EX={mode:'home'};drawExam()}
+function closeExams(){stopAud();clearInterval(exTick);EX=null;const el=$('#exam');if(el)el.remove();document.documentElement.classList.remove('vopen');if(exURL){URL.revokeObjectURL(exURL);exURL=null}render()}
+function fmt(ms){const s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function timerText(){if(!EX.run.timed)return 'no limit';return fmt(EX.endAt-Date.now())}
+function drawExam(){
+  const el=$('#exam');if(!el||!EX)return;
+  if(EX.mode==='home'){el.innerHTML=exHome();return}
+  if(EX.mode==='sheet'){el.innerHTML=exSheet();return}
+  if(EX.mode==='result'){el.innerHTML=exResult();return}
+  el.innerHTML=exRun();exLoadPage();syncAud()
+}
+function exHome(){
+  let h=`<div id="xbar"><button class="sec" onclick="closeExams()">✕</button><b style="flex:1">JLPT practice exams</b></div><div id="xbody">`;
+  if(!exams.length)return h+'<p class="mut">No exam on this phone yet. Import the exam file (.pack) in Settings.</p></div>';
+  const R=LS('exres',{}),Dr=LS('exdraft',{});
+  for(const ex of exams){
+    h+=`<h3>${esc(ex.title)}</h3><p class="mut">Work through it like the real test. Your answers are scored automatically, and the correct answers stay hidden unless you choose to open them.</p><p><label><input type="checkbox" ${LS('extimed',true)?'checked':''} onchange="LS.set('extimed',this.checked)"> Use the real time limits</label></p>`;
+    const latest={};
+    for(const sec of ex.sections){
+      const arr=R[exKey(ex,sec)]||[];const last=arr[arr.length-1];const best=arr.reduce((a,x)=>Math.max(a,x.pct),0);if(last)latest[sec.id]=last;const dr=Dr[exKey(ex,sec)];
+      h+=`<div class="panel"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>${esc(sec.title)}</b><span class="mut">${sec.minutes} min · ${sec.qs.length} questions</span></div><div class="mut" style="margin:2px 0 8px">${esc(sec.jp)}</div>${last?`<div class="kv"><span>Last attempt</span><b>${last.correct}/${last.total} · ${last.pct}%</b></div><div class="kv"><span>Best of ${arr.length}</span><b>${best}%</b></div>`:''}<div style="display:flex;gap:8px;margin-top:10px">${dr?`<button onclick="exStart('${ex.id}','${sec.id}',true)">Resume</button><button class="sec" onclick="exStart('${ex.id}','${sec.id}',false)">Start over</button>`:`<button onclick="exStart('${ex.id}','${sec.id}',false)">Start</button>`}</div></div>`}
+    if(ex.sections.every(x=>latest[x.id])){
+      const lk=(latest.voc.correct+latest.gra.correct)/(latest.voc.total+latest.gra.total),li=latest.lis.correct/latest.lis.total;
+      const LK=Math.round(lk*120),LI=Math.round(li*60),T=LK+LI;const ok=T>=80&&LK>=38&&LI>=19;
+      h+=`<div class="panel"><h4>Rough overall estimate</h4><div class="kv"><span>Language knowledge + reading</span><b>${LK} / 120 <span class="mut">(min 38)</span></b></div><div class="kv"><span>Listening</span><b>${LI} / 60 <span class="mut">(min 19)</span></b></div><div class="kv"><span>Total</span><b style="color:${ok?'var(--ok)':'var(--warn)'}">${T} / 180 <span class="mut">(pass 80)</span></b></div><p class="mut" style="font-size:12px;margin:8px 0 0">Based on your latest attempt of each section, scaled to the official JLPT N5 ranges. The real test uses its own scaling, so treat this as a rough guide only.</p></div>`}
+    h+=`<p><button class="sec" onclick="exDelete('${ex.id}')">Remove this exam from the phone</button></p>`}
+  return h+'</div>'
+}
+async function exDelete(id){const ex=exams.find(e=>e.id===id);if(!ex||!confirm('Remove this exam from the phone? Your scores are kept.'))return;const t=db.transaction(['pages','packs'],'readwrite');ex.keys.forEach(k=>t.objectStore('pages').delete(id+':'+k));t.objectStore('packs').delete(id);await new Promise(r=>t.oncomplete=r);await initDB();closeExams()}
+function exStart(exid,secid,resume){
+  const ex=exams.find(e=>e.id===exid),sec=ex.sections.find(x=>x.id===secid),key=exKey(ex,sec),D=LS('exdraft',{});
+  if(!resume&&!confirm(`Start "${sec.title}"?${LS('extimed',true)?' The timer ('+sec.minutes+' min) starts now.':''}`))return;
+  const run=resume&&D[key]?D[key]:{ans:{},left:sec.minutes*60000,timed:LS('extimed',true),page:0,used:0};
+  EX={mode:'run',ex,sec,run,key,zoom:1,aud:0,endAt:Date.now()+run.left};
+  if(sec.audio)loadAud(0,false);
+  clearInterval(exTick);exTick=setInterval(exTickFn,1000);drawExam()
+}
+function exSave(){const{run,key}=EX;if(run.timed)run.left=Math.max(0,EX.endAt-Date.now());run.page=run.page;const D=LS('exdraft',{});D[key]=run;LS.set('exdraft',D)}
+function exTickFn(){if(!EX||(EX.mode!=='run'&&EX.mode!=='sheet'))return;EX.run.used=(EX.run.used||0)+1000;const t=$('#xtimer');
+  if(EX.run.timed){const left=EX.endAt-Date.now();if(t){t.textContent=fmt(left);t.className='pill'+(left<60000?' tb':left<300000?' tw':'')}if(left<=0){alert('Time is up. Your answers are being scored.');exFinish(true)}}}
+function exRun(){
+  const{sec,run}=EX,pg=run.page,np=sec.pages.length;
+  let h=`<div id="xbar"><button class="sec" onclick="exExit()">✕</button><b style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(sec.title)}</b><span id="xtimer" class="pill">${timerText()}</span><button class="sec" onclick="EX.mode='sheet';drawExam()">Answer sheet</button></div>`;
+  if(sec.audio)h+=`<div id="xa"><div class="xtabs">${sec.audio.map((p,i)=>`<button class="${EX.aud===i?'on':''}" onclick="exPart(${i})">${esc(p.label)}</button>`).join('')}</div><div class="xplay"><button class="sec" onclick="audSkip(-10)">−10s</button><button id="xpp" onclick="audToggle()">▶</button><button class="sec" onclick="audSkip(10)">+10s</button><input type="range" id="xseek" min="0" max="1000" value="0" oninput="audSeek(this.value)" style="min-width:50px"><span id="xtime" class="mut">0:00</span></div></div>`;
+  h+=`<div id="xi"><img id="xpi" alt="page ${pg+1}" style="width:${EX.zoom*100}%"></div><div id="xb">${exBottom()}</div>`;
+  return h
+}
+function qRow(qi){const q=EX.sec.qs[qi],a=EX.run.ans[qi];return `<div class="qr"><b>${esc(q.label)}</b>${[1,2,3,4].slice(0,q.opts).map(n=>`<button class="bub ${a===n?'on':''}" onclick="exAns(${qi},${n})">${n}</button>`).join('')}</div>`}
+function exBottom(){const{sec,run}=EX,pg=run.page,np=sec.pages.length,qs=sec.pagemap[pg];
+  return `<div class="xnav"><button class="sec" onclick="exPage(-1)" ${pg<=0?'disabled':''}>◀</button><span class="mut">Page ${pg+1} / ${np}</span><button class="sec" onclick="exPage(1)" ${pg>=np-1?'disabled':''}>▶</button><button class="sec" onclick="EX.zoom=EX.zoom>=2?1:EX.zoom+.5;drawExam()">🔍 ${EX.zoom}×</button></div>`+(qs.length?qs.map(qRow).join(''):'<div class="mut" style="padding:6px 2px">Nothing to answer on this page.</div>')}
+async function exLoadPage(){const{ex,sec,run}=EX;const pg=run.page;const b=await exBlob(ex.id,sec.pages[pg]);if(!EX||EX.run.page!==pg||EX.mode!=='run')return;if(exURL)URL.revokeObjectURL(exURL);if(b){exURL=URL.createObjectURL(b);const im=$('#xpi');if(im)im.src=exURL}}
+function exPage(d){EX.run.page=Math.min(EX.sec.pages.length-1,Math.max(0,EX.run.page+d));exSave();drawExam()}
+function exAns(qi,n){const run=EX.run;if(run.ans[qi]===n)delete run.ans[qi];else run.ans[qi]=n;exSave();if(EX.mode==='sheet')drawExam();else{const b=$('#xb');if(b)b.innerHTML=exBottom()}}
+function exSheet(){
+  const{sec,run}=EX;let h=`<div id="xbar"><button class="sec" onclick="EX.mode='run';drawExam()">←</button><b style="flex:1">Answer sheet</b><span id="xtimer" class="pill">${timerText()}</span></div><div id="xbody">`;
+  let g=null;sec.qs.forEach((q,qi)=>{if(q.g!==g){g=q.g;h+=`<div class="sub">${esc(g)}</div>`}h+=qRow(qi)});
+  const un=sec.qs.length-Object.keys(run.ans).length;
+  return h+`<p class="mut" style="margin:14px 0 8px">${un?un+' unanswered':'Every question answered'}</p><button style="width:100%;padding:14px" onclick="exFinish(false)">Finish and see my score</button></div>`
+}
+function exExit(){if(!confirm('Leave for now? Your answers and the remaining time are saved, and you can resume later.'))return;exSave();stopAud();clearInterval(exTick);EX={mode:'home'};drawExam()}
+function exFinish(auto){
+  const{sec,run}=EX;
+  if(!auto){const un=sec.qs.length-Object.keys(run.ans).length;if(!confirm(un?`${un} question(s) are unanswered. Finish anyway?`:'Finish and score this section?'))return}
+  stopAud();clearInterval(exTick);
+  let correct=0;const by={};sec.qs.forEach((q,i)=>{const ok=run.ans[i]===q.ans;if(ok)correct++;const b=by[q.g]||(by[q.g]=[0,0]);b[1]++;if(ok)b[0]++});
+  const rec={date:Date.now(),correct,total:sec.qs.length,pct:Math.round(100*correct/sec.qs.length),by,ans:{...run.ans},used:run.used||0,timed:run.timed};
+  const R=LS('exres',{});(R[EX.key]=R[EX.key]||[]).push(rec);LS.set('exres',R);const D=LS('exdraft',{});delete D[EX.key];LS.set('exdraft',D);
+  EX.mode='result';EX.rec=rec;EX.show={wrong:false,ans:false,mine:false};drawExam()
+}
+function exResult(){
+  const{sec,rec,show}=EX;
+  let h=`<div id="xbar"><button class="sec" onclick="EX={mode:'home'};drawExam()">←</button><b style="flex:1">${esc(sec.title)} · result</b></div><div id="xbody"><div class="rsum"><b>${rec.correct} / ${rec.total}</b><span class="mut">${rec.pct}% correct · ${fmt(rec.used)} used</span></div><div class="panel"><h4>By part</h4>${Object.entries(rec.by).map(([g,[c,t]])=>`<div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:14px"><span style="width:56px;color:var(--mut)">${esc(g)}</span><div class="bar" style="flex:1"><i style="width:${100*c/t}%;background:var(--ok)"></i></div><span style="width:44px;text-align:right">${c}/${t}</span></div>`).join('')}</div>`;
+  h+=`<p class="mut" style="font-size:13px">Looking at the answers can make you remember them instead of the material, so they stay hidden until you open them.</p>`;
+  h+=`<p><button class="sec" style="width:100%" onclick="EX.show.wrong=!EX.show.wrong;drawExam()">${show.wrong?'Hide':'Show'} which questions I missed</button></p>`;
+  if(show.wrong){const w=sec.qs.map((q,i)=>[q,i]).filter(([q,i])=>rec.ans[i]!==q.ans);h+=w.length?`<div>${w.map(([q])=>`<span class="chip no">${esc(q.label)}</span>`).join('')}</div>`:'<p class="mut">None. A perfect score.</p>'}
+  h+=`<p><button class="sec" style="width:100%" onclick="EX.show.ans=!EX.show.ans;drawExam()">${show.ans?'Hide':'Show'} the correct answers</button></p>`;
+  if(show.ans)h+=`<div class="panel">${sec.qs.map((q,i)=>{const ok=rec.ans[i]===q.ans;return `<div class="kv"><span>${esc(q.label)}</span><span>you: ${rec.ans[i]||'–'} · correct: <b style="color:${ok?'var(--ok)':'var(--bad)'}">${q.ans}</b></span></div>`}).join('')}</div>`;
+  h+=`<p><button class="sec" style="width:100%" onclick="EX.show.mine=!EX.show.mine;drawExam()">${show.mine?'Hide':'Show'} my answer sheet</button></p>`;
+  if(show.mine)h+=`<div class="panel">${sec.qs.map((q,i)=>`<span class="chip">${esc(q.label)}: ${rec.ans[i]||'–'}</span>`).join('')}</div>`;
+  return h+`<p style="display:flex;gap:8px"><button style="flex:1" onclick="exStart('${EX.ex.id}','${sec.id}',false)">Take it again</button><button class="sec" style="flex:1" onclick="EX={mode:'home'};drawExam()">Back to exams</button></p></div>`
+}
+/* listening audio */
+function stopAud(){if(exAud){exAud.pause();exAud.src='';exAud=null}if(audURL){URL.revokeObjectURL(audURL);audURL=null}}
+async function loadAud(i,play){
+  stopAud();EX.aud=i;const p=EX.sec.audio[i];const b=await exBlob(EX.ex.id,p.key);if(!b||!EX||EX.aud!==i)return;
+  audURL=URL.createObjectURL(b);exAud=new Audio(audURL);exAud.ontimeupdate=syncAud;exAud.onended=syncAud;exAud.onpause=syncAud;exAud.onplay=syncAud;exAud.onloadedmetadata=syncAud;if(play)exAud.play().catch(()=>{});syncAud()
+}
+function syncAud(){const pp=$('#xpp');if(!pp||!exAud)return;pp.textContent=exAud.paused?'▶':'⏸';const d=exAud.duration||EX.sec.audio[EX.aud].dur||1;const sk=$('#xseek');if(sk&&document.activeElement!==sk)sk.value=Math.round(1000*exAud.currentTime/d);const tm=$('#xtime');if(tm)tm.textContent=fmt(exAud.currentTime*1000)}
+function audToggle(){if(!exAud)return;exAud.paused?exAud.play().catch(()=>{}):exAud.pause()}
+function audSkip(s){if(exAud)exAud.currentTime=Math.max(0,Math.min(exAud.duration||1e9,exAud.currentTime+s))}
+function audSeek(v){if(exAud&&exAud.duration)exAud.currentTime=exAud.duration*v/1000}
+function exPart(i){const p=EX.sec.audio[i];EX.run.page=p.page;exSave();loadAud(i,false);drawExam()}
 applyTheme();initDB().then(()=>{render();navigator.storage?.persist?.()});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script></body></html>
