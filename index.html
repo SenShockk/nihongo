@@ -1,49 +1,61 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-visual">
-<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1f2937">
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0b1017">
 <link rel="icon" href="icon-192.png"><title>Nihongo Study</title>
 <style>
-:root{--bg:#f4f5f7;--fg:#1a1d21;--card:#fff;--mut:#6b7280;--ac:#2563eb;--bd:#d9dce1}
-@media(prefers-color-scheme:dark){:root{--bg:#111418;--fg:#e8eaed;--card:#1b1f25;--mut:#9aa1ab;--ac:#6ea0ff;--bd:#2c323a}}
-*{box-sizing:border-box}html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,sans-serif;padding-top:env(safe-area-inset-top)}
-#app{max-width:640px;margin:0 auto;padding:12px 12px 80px}
-h2{margin:8px 0}.mut{color:var(--mut);font-size:14px}
-.row{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:8px 0;cursor:pointer}
+:root{--bg:#0b1017;--fg:#e8eef7;--card:#141c28;--card2:#1a2434;--mut:#8896aa;--bd:#232f42;--ac:#7aa2ff;--ac2:#a78bfa;--ok:#34d399;--warn:#fbbf24;--bad:#fb7185;--info:#38bdf8;--glow:rgba(122,162,255,.16);--nav:rgba(20,28,40,.86)}
+[data-theme=light]{--bg:#f2f5fb;--fg:#162033;--card:#fff;--card2:#f4f7fc;--mut:#64748b;--bd:#dde4ef;--ac:#4f6df5;--ac2:#8b5cf6;--ok:#10b981;--warn:#f59e0b;--bad:#ef4444;--info:#0ea5e9;--glow:rgba(79,109,245,.12);--nav:rgba(255,255,255,.88)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;min-height:100%}
+body{background:radial-gradient(900px 420px at 50% -140px,var(--glow),transparent),var(--bg);background-attachment:fixed;color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-top:env(safe-area-inset-top)}
+html.vopen,html.vopen body{overflow:hidden;overscroll-behavior:none}
+#app{max-width:640px;margin:0 auto;padding:14px 14px 112px}
+h2{margin:6px 0 8px;font-size:26px;letter-spacing:-.4px}h3{margin:14px 0 4px;font-size:17px}.mut{color:var(--mut);font-size:14px}
+.row{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:13px 14px;margin:8px 0;cursor:pointer;transition:background .15s,transform .1s}
+.row:active{background:var(--card2);transform:scale(.99)}
 .row .t{flex:1}.row b{font-weight:600}
-button,.btn{font:inherit;background:var(--ac);color:#fff;border:0;border-radius:8px;padding:10px 14px}
-button.sec{background:var(--card);color:var(--fg);border:1px solid var(--bd)}
-button:disabled{opacity:.4}
-nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom);z-index:5}
-nav button{flex:1;background:none;color:var(--mut);border-radius:0;padding:14px}nav button.on{color:var(--ac);font-weight:700}
-.pill{background:var(--bd);border-radius:20px;padding:2px 8px;font-size:13px}.due{background:var(--ac);color:#fff}
-.cardbox{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:24px 16px;min-height:200px;text-align:center;margin:12px 0}
-.big{font-size:34px;margin:6px 0}.mid{font-size:22px;margin:4px 0}
-.grades{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.grades button{padding:10px 2px;font-size:14px}
-.grades small{display:block;opacity:.8}
-#viewer{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
-#vbar{display:flex;gap:6px;align-items:center;padding:8px;border-bottom:1px solid var(--bd)}
-#vimg{flex:1;overflow:auto;background:#888;-webkit-overflow-scrolling:touch}#vimg img{display:block;background:#fff}
-#vfoot{max-height:45vh;overflow:auto;padding:8px;border-top:1px solid var(--bd);padding-bottom:calc(8px + env(safe-area-inset-bottom))}
-textarea{width:100%;min-height:120px;max-height:50vh;background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:8px;font:inherit;margin-bottom:6px}
-input[type=number]{width:70px;font:inherit;padding:6px}
-
+button,.btn{font:inherit;font-weight:600;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;border:0;border-radius:12px;padding:11px 16px;transition:filter .15s,transform .1s}
+button:active,.btn:active{transform:scale(.97)}
+button.sec{background:var(--card2);color:var(--fg);border:1px solid var(--bd);font-weight:500}
+button:disabled{opacity:.35}
+nav{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));max-width:616px;margin:0 auto;display:flex;gap:4px;background:var(--nav);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid var(--bd);border-radius:22px;padding:6px;z-index:5;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;color:var(--mut);border-radius:16px;padding:8px 4px;font-size:11px;font-weight:600;border:0}
+nav button svg{width:22px;height:22px}
+nav button.on{background:linear-gradient(135deg,rgba(122,162,255,.22),rgba(167,139,250,.18));color:var(--ac)}
+.pill{background:rgba(128,150,180,.14);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--mut)}.due{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff}
+.cardbox{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(135deg,var(--ac),var(--ac2)) border-box;border:1.5px solid transparent;border-radius:22px;padding:28px 18px;min-height:220px;text-align:center;margin:14px 0;box-shadow:0 14px 34px rgba(0,0,0,.28)}
+.big{font-size:36px;margin:6px 0;line-height:1.25}.mid{font-size:22px;margin:4px 0;color:var(--ac)}
+.grades{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.grades button{padding:11px 2px;font-size:14px;border-radius:14px;background:var(--card2);border:1px solid var(--bd);color:var(--fg)}
+.grades small{display:block;opacity:.85;font-weight:500;margin-top:1px}
+.grades .g1{background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.5);color:var(--bad)}.grades .g2{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.45);color:var(--warn)}
+.grades .g3{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.5);color:var(--ok)}.grades .g4{background:rgba(56,189,248,.12);border-color:rgba(56,189,248,.5);color:var(--info)}
+#viewer{position:fixed;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);overscroll-behavior:contain}
+#vbar{display:flex;gap:6px;align-items:center;padding:8px;border-bottom:1px solid var(--bd);background:var(--card)}
+#vimg{flex:1;overflow:auto;background:#06090e;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}#vimg img{display:block;background:#fff}
+#vfoot{max-height:45vh;overflow:auto;overscroll-behavior:contain;padding:8px;border-top:1px solid var(--bd);background:var(--card);padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+textarea,input,select{background:var(--card2);color:var(--fg);border:1px solid var(--bd);border-radius:10px;font:inherit}
+textarea{width:100%;min-height:120px;max-height:50vh;padding:9px;margin-bottom:6px;overscroll-behavior:contain}
+textarea:focus,input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--glow)}
+input[type=number]{width:70px;padding:6px}select{padding:6px 8px}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
-.tile{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px}
-.tile b{display:block;font-size:28px;line-height:1.1}.tile span{color:var(--mut);font-size:13px}
-.panel{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
-.panel h4{margin:0 0 10px;font-size:15px}
-.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--bd)}
+.tile{position:relative;overflow:hidden;background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:16px 14px 14px}
+.tile:before{content:"";position:absolute;left:0;top:0;right:0;height:3px;background:var(--tc,var(--ac))}
+.tile b{display:block;font-size:30px;line-height:1.1;letter-spacing:-.5px}.tile span{color:var(--mut);font-size:13px}
+.panel{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:16px 14px;margin:12px 0}
+.panel h4{margin:0 0 12px;font-size:15px;letter-spacing:.2px}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:rgba(128,150,180,.16)}
 .bar i{display:block;height:100%}
-.leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mut);margin-top:6px}
+.leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mut);margin-top:7px}
 .leg u{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;text-decoration:none}
 .heat{display:grid;grid-template-rows:repeat(7,14px);grid-auto-flow:column;grid-auto-columns:14px;gap:3px;padding-bottom:4px}.heatw{overflow-x:auto}
-.heat div{border-radius:3px;background:var(--bd)}.heat .t{outline:2px solid var(--fg);outline-offset:-1px}
-.fc{display:flex;align-items:flex-end;gap:4px;height:80px}.fc div{flex:1;background:var(--ac);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.heat div{border-radius:4px;background:var(--bd)}.heat .t{outline:2px solid var(--ac);outline-offset:1px}
+.fc{display:flex;align-items:flex-end;gap:4px;height:80px}.fc div{flex:1;background:linear-gradient(180deg,var(--ac),var(--ac2));border-radius:4px 4px 0 0;min-height:2px;position:relative}
 .fl{display:flex;gap:4px;font-size:10px;color:var(--mut)}.fl span{flex:1;text-align:center}
-.g{--c0:var(--bd);--c1:#9be9a8;--c2:#40c463;--c3:#30a14e;--c4:#216e39}
-.kv{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bd);font-size:14px}.kv:last-child{border:0}
+.g{--c0:rgba(128,150,180,.16);--c1:#14513f;--c2:#1f8a68;--c3:#2fbf8f;--c4:#6ff0c0}
+[data-theme=light] .g{--c1:#b7ecd8;--c2:#6fd4b0;--c3:#2fb88a;--c4:#0f8f68}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd);font-size:14px}.kv:last-child{border:0}
+.pb{margin-bottom:16px}.pb:last-of-type{margin-bottom:4px}.pbh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}.pbh b{font-size:15px}.pbh .pc{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.sub{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:8px 0 4px}
 </style></head><body><div id="app"></div>
 <script>
 const $=s=>document.querySelector(s);
@@ -88,6 +100,9 @@ function sched(s0,g){
   return s;
 }
 const fmtIv=(o,n)=>{if(n.t===1){const m=Math.round((n.d-Date.now())/60000);return m+'m'}const d=n.iv;return d>=365?(d/365).toFixed(1)+'y':d>=30?(d/30).toFixed(1)+'mo':d+'d'};
+const BK=['#7aa2ff','#34d399','#fbbf24','#fb7185','#38bdf8','#c084fc','#2dd4bf','#f472b6'];
+function bkc(p){const i=packs.findIndex(x=>x.id===p.id);return BK[(i<0?0:i)%BK.length]}
+function applyTheme(){const t=LS('theme','dark');document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name=theme-color]');if(m)m.content=t==='light'?'#f2f5fb':'#0b1017'}
 const OFFS={jfz1:0,jfz2:330,kana:2397,jfz3:736,jfz4:1096,jfz5:1524};
 const poff=p=>p.off??OFFS[p.id]??(p.first-1);
 const pn=(p,x)=>{const n=x-poff(p);return n>=1?String(n):'front '+(x-p.first+1)};
@@ -145,41 +160,48 @@ function render(){
   else if(tab==='books')h=viewBooks();
   else if(tab==='stats')h=viewStats();
   else h=viewSet();
-  a.innerHTML=h+`<nav>${[['study','Study'],['books','Books'],['stats','Stats'],['set','Settings']].map(([k,n])=>`<button class="${tab===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</nav>`;
+  const IC={study:'<rect x="3" y="7" width="14" height="13" rx="2.5"/><path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"/>',books:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M9 7h6"/>',stats:'<path d="M5 20V11M12 20V4M19 20v-6"/>',set:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'};
+  a.innerHTML=h+`<nav>${[['study','Study'],['books','Books'],['stats','Stats'],['set','Settings']].map(([k,n])=>`<button class="${tab===k?'on':''}" onclick="go('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[k]}</svg>${n}</button>`).join('')}</nav>`;
 }
 function go(t){tab=t;sess=null;render()}
 const isOpenB=(k,p)=>{const v=LS('openb',{})[k+p.id];return v===undefined?packs.length===1:v};
 function toggleB(k,id){const o=LS('openb',{});o[k+id]=!isOpenB(k,{id});LS.set('openb',o);render()}
-const bookHead=(k,p,c)=>`<div class="row" style="padding:18px 14px;margin-top:14px" onclick="toggleB('${k}','${p.id}')"><div class="t"><b style="font-size:18px">${esc(p.title)}</b></div>${c?`<span class="pill ${c.n?'due':''}">${c.n} new</span><span class="pill ${c.l+c.r?'due':''}">${c.l+c.r} due</span>`:''}<span style="font-size:22px;padding-left:6px">${isOpenB(k,p)?'▾':'▸'}</span></div>`;
+const bookHead=(k,p,c)=>`<div class="row" style="padding:18px 14px;margin-top:14px;border-left:5px solid ${bkc(p)}" onclick="toggleB('${k}','${p.id}')"><div class="t"><b style="font-size:18px">${esc(p.title)}</b></div>${c?`<span class="pill ${c.n?'due':''}">${c.n} new</span><span class="pill ${c.l+c.r?'due':''}">${c.l+c.r} due</span>`:''}<span style="font-size:22px;padding-left:6px">${isOpenB(k,p)?'▾':'▸'}</span></div>`;
 function viewStudy(){
   let h='<h2>Vocabulary decks</h2><div class="mut">Cards come only from the book\'s vocabulary tables. Each word gives 2 cards: English → Japanese and Japanese → English.</div>';
   for(const p of packs){
     const all=cardsOf(p);const c=counts(buildQ(all,p));
     h+=bookHead('s',p,c);if(!isOpenB('s',p))continue;
     {const hd=LS('hidedup',true)?dupsOf(p).size:0;if(hd)h+=`<div class="mut" style="margin:-2px 4px 4px">${hd} words hidden because they already exist in an earlier book or earlier in this one.</div>`}
-    h+=row(`<b>Whole book</b><div class="mut">${all.length} cards</div>`,c,`startSess('${p.id}')`);
+    h+=row(`<b>Whole book</b><div class="mut">${all.length} cards</div>`,c,`startSess('${p.id}')`,bkc(p));
     const us=[...new Set(p.cards.map(c=>c.unit))];
-    for(const u of us){const cs=cardsOf(p,u);const k=counts(buildQ(cs,p));h+=row(`<b>${isLocked(p,u)?'🔒 ':''}${esc(p.units[u])}</b><div class="mut">${cs.length} cards</div>`,k,`startSess('${p.id}',${u})`)}
+    for(const u of us){const cs=cardsOf(p,u);const k=counts(buildQ(cs,p));h+=row(`<b>${isLocked(p,u)?'🔒 ':''}${esc(p.units[u])}</b><div class="mut">${cs.length} cards</div>`,k,`startSess('${p.id}',${u})`,bkc(p))}
   }
   return h;
 }
-const row=(t,c,oc)=>`<div class="row" onclick="${oc}"><div class="t">${t}</div><span class="pill ${c.n?'due':''}" title="new">${c.n} new</span><span class="pill ${c.l+c.r?'due':''}">${c.l+c.r} due</span></div>`;
+const row=(t,c,oc,col)=>`<div class="row" ${col?`style="border-left:4px solid ${col}"`:''} onclick="${oc}"><div class="t">${t}</div><span class="pill ${c.n?'due':''}" title="new">${c.n} new</span><span class="pill ${c.l+c.r?'due':''}">${c.l+c.r} due</span></div>`;
 function startSess(pid,unit){const p=packs.find(x=>x.id===pid);sess={p,unit,cards:cardsOf(p,unit),show:false,done:0,title:unit==null?p.title:p.units[unit]};next()}
 function next(){const q=buildQ(sess.cards,sess.p);sess.q=q;sess.cur=q.learn[0]||q.rev[0]||q.nw[0]||q.ahead[0]||null;sess.show=false;render()}
 function viewSession(){
   const s=sess,c=s.cur;const k=counts(s.q);
-  let h=`<div style="display:flex;gap:8px;align-items:center"><button class="sec" onclick="go('study')">←</button><b style="flex:1">${esc(s.title)}</b><span class="pill">${k.n} new · ${k.l} learn · ${k.r} review</span></div>`;
+  let h=`<div style="display:flex;gap:8px;align-items:center"><button class="sec" onclick="go('study')">←</button><b style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.title)}</b><button class="sec" style="white-space:nowrap" onclick="undo()" ${s.hist&&s.hist.length?'':'disabled'}>↶ Undo</button></div><div style="margin:8px 2px 0"><span class="pill">${k.n} new · ${k.l} learn · ${k.r} review</span></div>`;
   if(!c){const left=s.q.newAvail>s.q.nw.length,lk=isLocked(s.p,s.unit);return h+`<div class="cardbox"><div class="mid">Done for now ✓</div><p class="mut">${s.done} cards reviewed.${lk?' New cards in this chapter unlock once all cards of the earlier chapter(s) have been introduced.':left?' Daily new-card limit reached (change in Settings).':''}</p></div>`}
   const w=eff(c.c);
   const front=c.dir===0?`<div class="mut">${esc(w.grp)}</div><div class="big">${esc(w.en)}</div>`:`<div class="mut">${esc(w.grp)}</div><div class="big">${esc(w.kana)}</div>${w.kanji!==w.kana?`<div class="mid">${esc(w.kanji)}</div>`:''}`;
   const back=c.dir===0?`<div class="big">${esc(w.kana)}</div>${w.kanji!==w.kana?`<div class="mid">${esc(w.kanji)}</div>`:''}<div class="mut">${esc(w.pro)}</div>`:`<div class="big">${esc(w.en)}</div><div class="mut">${esc(w.pro)}</div>`;
   const SB='<div><button class="sec" onclick="speak(eff(sess.cur.c).kana)">🔊</button></div>';
   h+=`<div class="cardbox">${front}${c.dir===1?SB:''}${s.show?'<hr style="border:0;border-top:1px solid var(--bd);margin:14px 0">'+back+(c.dir===0?SB:'')+`<div class="mut" style="margin-top:12px"><a href="#" onclick="event.preventDefault();openPage('${s.p.id}',${w.page})" style="color:var(--ac)">see book page ${pn(s.p,w.page)}</a> · <a href="#" onclick="event.preventDefault();editCard()" style="color:var(--ac)">✎ edit</a></div>`:''}</div>`;
-  if(!s.show)h+=`<button style="width:100%;padding:14px" onclick="sess.show=true;render()">Show answer</button>`;
-  else{const st=srs()[c.id]||def();h+='<div class="grades">'+[[1,'Again'],[2,'Hard'],[3,'Good'],[4,'Easy']].map(([g,n])=>`<button class="${g<3?'sec':''}" onclick="grade(${g})">${n}<small>${fmtIv(st,sched(st,g))}</small></button>`).join('')+'</div>'}
+  if(!s.show)h+=`<button style="width:100%;padding:15px;font-size:16px" onclick="sess.show=true;render()">Show answer</button>`;
+  else{const st=srs()[c.id]||def();h+='<div class="grades">'+[[1,'Again'],[2,'Hard'],[3,'Good'],[4,'Easy']].map(([g,n])=>`<button class="g${g}" onclick="grade(${g})">${n}<small>${fmtIv(st,sched(st,g))}</small></button>`).join('')+'</div>'}
   return h;
 }
-function grade(g){const c=sess.cur;const S=srs();const old=S[c.id];if(!old||old.t===0)bumpNew(sess.p.id);logRev(g,!old||old.t===0);S[c.id]=sched(old||def(),g);LS.set('srs',S);sess.done++;next()}
+function grade(g){const c=sess.cur;const S=srs();const old=S[c.id];const isNew=!old||old.t===0;
+  (sess.hist=sess.hist||[]).push({c,prev:old?JSON.parse(JSON.stringify(old)):null,isNew,g,day:dayKey()});if(sess.hist.length>40)sess.hist.shift();
+  if(isNew)bumpNew(sess.p.id);logRev(g,isNew);S[c.id]=sched(old||def(),g);LS.set('srs',S);sess.done++;next()}
+function undo(){const h=sess.hist&&sess.hist.pop();if(!h)return;const S=srs();if(h.prev)S[h.c.id]=h.prev;else delete S[h.c.id];LS.set('srs',S);
+  const L=LS('log',{});const e=L[h.day];if(e){e.r=Math.max(0,e.r-1);if(h.isNew)e.n=Math.max(0,e.n-1);if(h.g===1)e.a=Math.max(0,e.a-1);if(!e.r)delete L[h.day];LS.set('log',L)}
+  if(h.isNew){const n=LS('newcnt',{});if(n[sess.p.id]>0)n[sess.p.id]--;LS.set('newcnt',n)}
+  sess.done=Math.max(0,sess.done-1);sess.q=buildQ(sess.cards,sess.p);sess.cur=h.c;sess.show=true;render()}
 
 function speak(txt){
   if(!('speechSynthesis' in window)){alert('This browser has no speech engine.');return}
@@ -229,18 +251,22 @@ function viewStats(){
   const pct=(a,b)=>b?Math.round(100*a/b):0;
   const wd=['S','M','T','W','T','F','S'];
   let h='<h2>Stats</h2>';
-  h+=`<div class="tiles"><div class="tile"><b>🔥 ${cur}</b><span>day streak (best ${best})</span></div><div class="tile"><b>${L[dayKey()]?.r||0}</b><span>reviews today</span></div><div class="tile"><b>${learnedWords}</b><span>words learned of ${totalWords}</span></div><div class="tile"><b>${mature}</b><span>mature cards (21+ days)</span></div></div>`;
+  h+=`<div class="tiles"><div class="tile" style="--tc:var(--warn)"><b>${cur}</b><span>day streak (best ${best})</span></div><div class="tile" style="--tc:var(--ac)"><b>${L[dayKey()]?.r||0}</b><span>reviews today</span></div><div class="tile" style="--tc:var(--ok)"><b>${learnedWords}</b><span>words learned of ${totalWords}</span></div><div class="tile" style="--tc:var(--ac2)"><b>${mature}</b><span>mature cards (21+ days)</span></div></div>`;
   h+='<div class="panel"><h4>Progress per book</h4>';
-  for(const b of perBook){const t=Math.max(1,b.tot);const lp=pct(b.y+b.m,b.tot);
-    h+=`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b>${esc(b.p.title)}</b><span class="mut">${lp}% learned</span></div><div class="bar"><i style="width:${100*b.m/t}%;background:#30a14e"></i><i style="width:${100*b.y/t}%;background:var(--ac)"></i><i style="width:${100*b.l/t}%;background:#e3a008"></i></div><div class="mut" style="font-size:12px;margin-top:3px">${b.m} mature · ${b.y} young · ${b.l} learning · ${b.n} new (of ${b.tot} cards)</div></div>`}
-  h+='<div class="leg"><span><u style="background:#30a14e"></u>mature</span><span><u style="background:var(--ac)"></u>young</span><span><u style="background:#e3a008"></u>learning</span><span><u style="background:var(--bd)"></u>new</span></div></div>';
+  const doneM=LS('done',{});
+  for(const b of perBook){const t=Math.max(1,b.tot);const ex=b.p.sections.filter(x=>x.kind==='activities');const exDone=ex.filter(x=>doneM[b.p.id+x.id]).length;
+    const cp=pct(b.y+b.m,b.tot),ep=ex.length?pct(exDone,ex.length):null;const comp=ep===null?cp:Math.round((cp+ep)/2);const col=bkc(b.p);
+    h+=`<div class="pb"><div class="pbh"><b>${esc(b.p.title)}</b><span class="pc" style="color:${col}">${comp}%</span></div>
+    <div class="sub">Cards · ${cp}% learned</div><div class="bar"><i style="width:${100*b.m/t}%;background:var(--ok)"></i><i style="width:${100*b.y/t}%;background:var(--ac)"></i><i style="width:${100*b.l/t}%;background:var(--warn)"></i></div>
+    <div class="mut" style="font-size:12px;margin-top:4px">${b.m} mature · ${b.y} young · ${b.l} learning · ${b.n} new (of ${b.tot})</div>
+    ${ep===null?'':`<div class="sub">Exercises · ${exDone} of ${ex.length} done</div><div class="bar"><i style="width:${ep}%;background:${col}"></i></div>`}</div>`}
+  h+='<div class="leg"><span><u style="background:var(--ok)"></u>mature</span><span><u style="background:var(--ac)"></u>young</span><span><u style="background:var(--warn)"></u>learning</span><span><u style="background:rgba(128,150,180,.3)"></u>new</span></div><div class="mut" style="font-size:12px;margin-top:6px">Overall % = average of cards learned and exercises ticked off in Books.</div></div>';
   h+=`<div class="panel g"><h4>Study calendar <span class="mut" style="font-weight:400">· last ${W} weeks</span></h4><div class="heatw"><div class="heat">${cells.join('')}</div><div style="display:flex;gap:3px;font-size:10px;color:var(--mut);margin-top:2px">${months.map(m=>`<span style="flex:0 0 14px;min-width:14px;white-space:nowrap">${m}</span>`).join('')}</div></div><div class="leg"><span>${days} days studied</span><span>less</span>${[0,1,2,3,4].map(i=>`<span><u style="background:var(--c${i})"></u></span>`).join('')}<span>more</span></div></div>`;
-  h+=`<div class="panel"><h4>Easy · normal · hard</h4>${rev.length?`<div class="bar"><i style="width:${pct(easy,rev.length)}%;background:#30a14e"></i><i style="width:${pct(norm,rev.length)}%;background:var(--ac)"></i><i style="width:${pct(hard,rev.length)}%;background:#d9480f"></i></div><div class="leg"><span><u style="background:#30a14e"></u>easy ${easy} (${pct(easy,rev.length)}%)</span><span><u style="background:var(--ac)"></u>normal ${norm} (${pct(norm,rev.length)}%)</span><span><u style="background:#d9480f"></u>hard ${hard} (${pct(hard,rev.length)}%)</span></div><div class="mut" style="font-size:12px;margin-top:6px">Based on each card's ease factor, so it shows how the app schedules them.</div>`:'<span class="mut">Appears once you have cards in review.</span>'}</div>`;
+  h+=`<div class="panel"><h4>Easy · normal · hard</h4>${rev.length?`<div class="bar"><i style="width:${pct(easy,rev.length)}%;background:var(--ok)"></i><i style="width:${pct(norm,rev.length)}%;background:var(--ac)"></i><i style="width:${pct(hard,rev.length)}%;background:var(--bad)"></i></div><div class="leg"><span><u style="background:var(--ok)"></u>easy ${easy} (${pct(easy,rev.length)}%)</span><span><u style="background:var(--ac)"></u>normal ${norm} (${pct(norm,rev.length)}%)</span><span><u style="background:var(--bad)"></u>hard ${hard} (${pct(hard,rev.length)}%)</span></div><div class="mut" style="font-size:12px;margin-top:6px">Based on each card's ease factor, so it shows how the app schedules them.</div>`:'<span class="mut">Appears once you have cards in review.</span>'}</div>`;
   h+=`<div class="panel"><h4>Repeat intervals</h4>${bk.map(([n,v])=>`<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px"><span style="width:78px;color:var(--mut)">${n}</span><div style="flex:1;background:var(--bd);border-radius:4px;height:12px"><div style="width:${100*v/bmax}%;height:100%;background:var(--ac);border-radius:4px"></div></div><span style="width:34px;text-align:right">${v}</span></div>`).join('')}<div class="kv" style="margin-top:8px"><span>Average repeat interval</span><b>${avgIv?avgIv.toFixed(1)+' days':'–'}</b></div><div class="kv"><span>Average ease</span><b>${avgE?avgE.toFixed(2):'–'}</b></div></div>`;
   h+=`<div class="panel"><h4>Due in the next 14 days</h4><div class="fc">${fc.map((v,i)=>`<div style="height:${Math.max(3,100*v/fmax)}%" title="${v}"></div>`).join('')}</div><div class="fl">${fc.map((v,i)=>{const d=new Date(today);d.setDate(d.getDate()+i);return `<span>${i===0?'today':wd[d.getDay()]}<br>${v}</span>`}).join('')}</div></div>`;
   h+=`<div class="panel"><h4>Totals</h4><div class="kv"><span>Total reviews</span><b>${totalRev}</b></div><div class="kv"><span>Days studied</span><b>${days}</b></div><div class="kv"><span>Average per studied day</span><b>${days?Math.round(totalRev/days):'–'}</b></div><div class="kv"><span>Best day</span><b>${bestDay||'–'}</b></div><div class="kv"><span>Correct answers, last 30 days</span><b>${r30?Math.round(100*(r30-a30)/r30)+'%':'–'}</b></div></div>`;
-  if(tr.length)h+=`<div class="panel"><h4>Trouble words</h4>${tr.map(x=>{const w=eff(x.c.c);return `<div class="kv"><span>${esc(w.kana)} · ${esc(w.en)}</span><b>${x.st.lap}×</b></div>`}).join('')}<div class="mut" style="font-size:12px;margin-top:6px">Cards you forgot after learning them (counted from this update on).</div></div>`;
-  h+='<p class="mut" style="font-size:12px">Review history (calendar, streak, totals) is counted from the day you installed this update.</p>';
+  if(tr.length)h+=`<div class="panel"><h4>Trouble words</h4>${tr.map(x=>{const w=eff(x.c.c);return `<div class="kv"><span>${esc(w.kana)} · ${esc(w.en)}</span><b>${x.st.lap}×</b></div>`}).join('')}</div>`;
   return h;
 }
 function viewBooks(){
@@ -264,7 +290,7 @@ function markDone(k,v){const d=LS('done',{});d[k]=v;LS.set('done',d)}
 /* ---------- Page viewer ---------- */
 let zoom=1,stack=[],curURL=null,bigNote=false,lastResize=0;
 addEventListener('resize',()=>lastResize=Date.now());if(window.visualViewport)visualViewport.addEventListener('resize',()=>lastResize=Date.now());
-function openPage(pid,page){V={p:packs.find(x=>x.id===pid),page};stack=[];let el=$('#viewer');if(!el){el=document.createElement('div');el.id='viewer';document.body.appendChild(el)}drawV()}
+function openPage(pid,page){document.documentElement.classList.add('vopen');V={p:packs.find(x=>x.id===pid),page};stack=[];let el=$('#viewer');if(!el){el=document.createElement('div');el.id='viewer';document.body.appendChild(el)}drawV()}
 function secAt(p,page){let r=null;for(const s of p.sections)if(s.start<=page)r=s;return r&&page<=r.end?r:null}
 async function drawV(){
   const {p,page}=V;const s=secAt(p,page);const el=$('#viewer');
@@ -291,14 +317,14 @@ function ansN(d){const{p,page}=V,nk=p.id+':'+page,A=getAns(p,page,nk);if(d>0)A.l
 function goP(d){V.page=Math.min(V.p.last,Math.max(V.p.first,V.page+d));drawV()}
 function jump(pg){stack.push(V.page);V.page=pg;drawV()}
 function back(){V.page=stack.pop();drawV()}
-function closeV(){const el=$('#viewer');if(el)el.remove();V=null;if(curURL){URL.revokeObjectURL(curURL);curURL=null}render()}
+function closeV(){document.documentElement.classList.remove('vopen');const el=$('#viewer');if(el)el.remove();V=null;if(curURL){URL.revokeObjectURL(curURL);curURL=null}render()}
 
 /* ---------- Settings ---------- */
 function viewSet(){
   return `<h2>Settings</h2>
   <h3>Books on this phone</h3>${packs.map(p=>`<div class="row"><div class="t"><b>${esc(p.title)}</b><div class="mut">${p.cards.length} words · pages ${rng(p,Math.max(p.first,poff(p)+1),p.last)}</div></div><button class="sec" onclick="rmPack('${p.id}')">Delete</button></div>`).join('')||'<p class="mut">None yet.</p>'}
   <p><label class="btn" style="display:inline-block">Import book file (.pack)<input type="file" style="display:none" onchange="doImport(this.files[0])"></label></p><div id="msg" class="mut"></div>
-  <h3>Study</h3><p>New cards per day (per book): <input type="number" min="0" max="200" value="${LS('newlimit',20)}" onchange="LS.set('newlimit',Math.max(0,+this.value||0))"></p>
+  <h3>Appearance</h3><p>Theme: <select onchange="LS.set('theme',this.value);applyTheme()"><option value="dark" ${LS('theme','dark')==='dark'?'selected':''}>Dark</option><option value="light" ${LS('theme','dark')==='light'?'selected':''}>Light</option></select></p><h3>Study</h3><p>New cards per day (per book): <input type="number" min="0" max="200" value="${LS('newlimit',20)}" onchange="LS.set('newlimit',Math.max(0,+this.value||0))"></p>
   <p><label><input type="checkbox" ${LS('gate',false)?'checked':''} onchange="LS.set('gate',this.checked)"> Unlock chapters in order (new cards of a chapter only after every card of the earlier chapters has been introduced)</label></p><p><label><input type="checkbox" ${LS('hidedup',true)?'checked':''} onchange="LS.set('hidedup',this.checked);render()"> Hide cards whose word already exists in an earlier book</label></p><h3>Backup</h3><p class="mut">Your progress (card schedule, notes, ticks) lives only on this phone. Export a backup now and then.</p>
   <button onclick="exportBk()">Export backup</button> <label class="btn" style="display:inline-block;background:var(--card);color:var(--fg);border:1px solid var(--bd)">Restore backup<input type="file" style="display:none" onchange="importBk(this.files[0])"></label>
   <h3>Reset</h3><button class="sec" onclick="if(confirm('Erase ALL progress and notes?')){['srs','notes','ans','edits','log','done','pos','newcnt'].forEach(k=>localStorage.removeItem(k));render()}">Erase progress</button>`;
@@ -308,6 +334,6 @@ async function rmPack(id){if(confirm('Delete this book from the phone? Your prog
 function exportBk(){const d={srs:LS('srs',{}),notes:LS('notes',{}),ans:LS('ans',{}),edits:LS('edits',{}),log:LS('log',{}),done:LS('done',{}),pos:LS('pos',{})};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));a.download='nihongo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
 async function importBk(f){if(!f)return;try{const d=JSON.parse(await f.text());for(const k of['srs','notes','ans','edits','log','done','pos'])if(d[k])LS.set(k,d[k]);alert('Restored.');render()}catch(e){alert('Not a valid backup file.')}}
 
-initDB().then(()=>{render();navigator.storage?.persist?.()});
+applyTheme();initDB().then(()=>{render();navigator.storage?.persist?.()});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script></body></html>
