@@ -301,18 +301,21 @@ function viewBooks(){
       const open=LS('openu',{})[p.id+i];
       h+=`<div class="row" onclick="toggleU('${p.id}',${i})"><div class="t"><b>${esc(u)}</b></div><span class="mut">${open?'▾':'▸'}</span></div>`;
       if(open)for(const s of secs){const lab=s.label||{lesson:'Lesson & grammar',activities:'Exercises',sentence:'Sentence building',answer:'Answer key',vocab:'Vocabulary',ref:'Reference'}[s.kind];
-        h+=`<div class="row" style="margin-left:18px" onclick="openPage('${p.id}',${s.start})"><div class="t">${lab}<div class="mut">pages ${rng(p,s.start,s.end)}</div></div>${s.kind==='activities'?`<label onclick="event.stopPropagation()"><input type="checkbox" ${done[p.id+s.id]?'checked':''} onchange="markDone('${p.id}${s.id}',this.checked)"> done</label>`:''}</div>`}
+        const lk=bookLocked(p)&&(s.kind==='activities'||s.kind==='answer');
+        h+=`<div class="row" style="margin-left:18px${lk?';opacity:.55':''}" onclick="${lk?`lockedMsg('${p.id}')`:`openPage('${p.id}',${s.start})`}"><div class="t">${lk?'🔒 ':''}${lab}<div class="mut">${lk?'locked · ':''}pages ${rng(p,s.start,s.end)}</div></div>${s.kind==='activities'&&!lk?`<label onclick="event.stopPropagation()"><input type="checkbox" ${done[p.id+s.id]?'checked':''} onchange="markDone('${p.id}${s.id}',this.checked)"> done</label>`:''}</div>`}
     });
   }
   return h;
 }
+function pageLocked(p,page){if(!p||!bookLocked(p))return false;const s=secAt(p,page);return !!s&&(s.kind==='activities'||s.kind==='answer')}
+function lockedMsg(pid){const p=packs.find(x=>x.id===pid);alert('The exercises and answer keys of this book are locked.\n\n'+(p?lockLabel(p).replace('🔒 ',''):''))}
 function toggleU(pid,i){const o=LS('openu',{});o[pid+i]=!o[pid+i];LS.set('openu',o);render()}
 function markDone(k,v){const d=LS('done',{});d[k]=v;LS.set('done',d)}
 
 /* ---------- Page viewer ---------- */
 let zoom=1,stack=[],curURL=null,bigNote=false,lastResize=0;
 addEventListener('resize',()=>lastResize=Date.now());if(window.visualViewport)visualViewport.addEventListener('resize',()=>lastResize=Date.now());
-function openPage(pid,page){document.documentElement.classList.add('vopen');V={p:packs.find(x=>x.id===pid),page};stack=[];let el=$('#viewer');if(!el){el=document.createElement('div');el.id='viewer';document.body.appendChild(el)}drawV()}
+function openPage(pid,page){if(pageLocked(packs.find(x=>x.id===pid),page)){lockedMsg(pid);return}document.documentElement.classList.add('vopen');V={p:packs.find(x=>x.id===pid),page};stack=[];let el=$('#viewer');if(!el){el=document.createElement('div');el.id='viewer';document.body.appendChild(el)}drawV()}
 function secAt(p,page){let r=null;for(const s of p.sections)if(s.start<=page)r=s;return r&&page<=r.end?r:null}
 async function drawV(){
   const {p,page}=V;const s=secAt(p,page);const el=$('#viewer');
@@ -336,7 +339,7 @@ async function drawV(){
 function getAns(p,page,nk){const all=LS('ans',{});if(all[nk])return all[nk];const sl=(p.slots||{})[page];return{l:sl&&sl.length?sl.slice():[1,2,3],v:[]}}
 function saveAns(nk,A){const all=LS('ans',{});all[nk]=A;LS.set('ans',all)}
 function ansN(d){const{p,page}=V,nk=p.id+':'+page,A=getAns(p,page,nk);if(d>0)A.l.push((+A.l[A.l.length-1]||A.l.length)+1);else if(A.l.length>1){A.l.pop();A.v.length=Math.min(A.v.length,A.l.length)}saveAns(nk,A);drawV()}
-function goP(d){V.page=Math.min(V.p.last,Math.max(V.p.first,V.page+d));drawV()}
+function goP(d){const np=Math.min(V.p.last,Math.max(V.p.first,V.page+d));if(pageLocked(V.p,np)){lockedMsg(V.p.id);return}V.page=np;drawV()}
 function jump(pg){stack.push(V.page);V.page=pg;drawV()}
 function back(){V.page=stack.pop();drawV()}
 function closeV(){document.documentElement.classList.remove('vopen');const el=$('#viewer');if(el)el.remove();V=null;if(curURL){URL.revokeObjectURL(curURL);curURL=null}render()}
