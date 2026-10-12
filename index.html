@@ -78,7 +78,8 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const LS=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};LS.set=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 let db,packs=[],exams=[],tab='study',sess=null,V=null;
 const idbReq=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-async function initDB(){const r=indexedDB.open('nihongo',1);r.onupgradeneeded=()=>{r.result.createObjectStore('packs');r.result.createObjectStore('pages')};db=await idbReq(r);const allp=await idbReq(db.transaction('packs').objectStore('packs').getAll());packs=allp.filter(p=>!p.type);exams=allp.filter(p=>p.type==='exam');packs.sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));for(const k in dupCache)delete dupCache[k]}
+async function initDB(){const r=indexedDB.open('nihongo',1);r.onupgradeneeded=()=>{r.result.createObjectStore('packs');r.result.createObjectStore('pages')};db=await idbReq(r);const allp=await idbReq(db.transaction('packs').objectStore('packs').getAll());packs=allp.filter(p=>!p.type);exams=allp.filter(p=>p.type==='exam');sortPacks();for(const k in dupCache)delete dupCache[k]}
+function sortPacks(){packs.sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));const bo=LS('border',null);if(bo)packs.sort((a,b)=>{const ia=bo.indexOf(a.id),ib=bo.indexOf(b.id);return (ia<0?1e9:ia)-(ib<0?1e9:ib)})}
 async function importPack(file){
   const buf=await file.arrayBuffer();const hl=new DataView(buf).getUint32(0,true);
   const meta=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,4,hl)));const base=4+hl;
@@ -116,7 +117,7 @@ function sched(s0,g){
 }
 const fmtIv=(o,n)=>{if(n.t===1){const m=Math.round((n.d-Date.now())/60000);return m+'m'}const d=n.iv;return d>=365?(d/365).toFixed(1)+'y':d>=30?(d/30).toFixed(1)+'mo':d+'d'};
 const BK=['#7aa2ff','#34d399','#fbbf24','#fb7185','#38bdf8','#c084fc','#2dd4bf','#f472b6'];
-function bkc(p){const i=packs.findIndex(x=>x.id===p.id);return BK[(i<0?0:i)%BK.length]}
+function bkc(p){const m=LS('bcol',{});if(m[p.id]===undefined){m[p.id]=Object.keys(m).length;LS.set('bcol',m)}return BK[m[p.id]%BK.length]}
 function applyTheme(){const t=LS('theme','dark');document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name=theme-color]');if(m)m.content=t==='light'?'#f2f5fb':'#0b1017'}
 const OFFS={jfz1:0,jfz2:330,kana:2397,jfz3:736,jfz4:1096,jfz5:1524};
 const poff=p=>p.off??OFFS[p.id]??(p.first-1);
@@ -153,6 +154,12 @@ const cardsOf=(p,unit)=>p.cards.filter(c=>(unit==null||c.unit===unit)&&!(LS('hid
 function newBudget(pid){const n=LS('newcnt',{});const today=new Date().toDateString();if(n.day!==today)return LS('newlimit',20);return Math.max(0,LS('newlimit',20)-(n[pid]||0))}
 function bumpNew(pid){const n=LS('newcnt',{});const today=new Date().toDateString();if(n.day!==today){for(const k in n)delete n[k];n.day=today}n[pid]=(n[pid]||0)+1;LS.set('newcnt',n)}
 function firstOpen(p){const S=srs();for(const u of [...new Set(p.cards.map(c=>c.unit))])if(cardsOf(p,u).some(c=>!S[c.id]||S[c.id].t===0))return u;return Infinity}
+const bookState=p=>LS('block',{})[p.id]||'auto';
+function bookDone(p){const S=srs();return cardsOf(p).every(c=>{const st=S[c.id];return st&&st.t!==0})}
+function bookLocked(p){const st=bookState(p);if(st==='locked')return true;if(st==='open')return false;if(!LS('autolock',false))return false;const i=packs.findIndex(x=>x.id===p.id);return i>0&&!bookDone(packs[i-1])}
+function lockLabel(p){const st=bookState(p);if(st==='locked')return '🔒 locked by you · no new cards';if(st==='open')return 'open · always available';if(bookLocked(p)){const i=packs.findIndex(x=>x.id===p.id);return '🔒 locked · finish “'+packs[i-1].title+'” first'}const i=packs.findIndex(x=>x.id===p.id);return LS('autolock',false)?(i===0?'open · first book':'open · previous book is done'):'open'}
+function moveBook(id,d){const ids=packs.map(p=>p.id);const i=ids.indexOf(id),j=i+d;if(j<0||j>=ids.length)return;[ids[i],ids[j]]=[ids[j],ids[i]];LS.set('border',ids);sortPacks();for(const k in dupCache)delete dupCache[k];render()}
+function setBookState(id,v){const m=LS('block',{});if(v==='auto')delete m[id];else m[id]=v;LS.set('block',m);render()}
 const isLocked=(p,u)=>LS('gate',false)&&u!=null&&u>firstOpen(p);
 function buildQ(cards,p){const pid=p.id;
   const S=srs(),now=Date.now();const learn=[],rev=[],nw=[],ahead=[];
@@ -161,7 +168,7 @@ function buildQ(cards,p){const pid=p.id;
     else if(s.t===1){if(s.d<=now)learn.push(c);else if(s.d<=now+20*60000)ahead.push(c)}
     else if(s.d<=now)rev.push(c)}
   learn.sort((a,b)=>S[a.id].d-S[b.id].d);ahead.sort((a,b)=>S[a.id].d-S[b.id].d);
-  let nwA=nw;if(LS('gate',false)){const fo=firstOpen(p);nwA=nw.filter(c=>c.c.unit===fo)}
+  let nwA=nw;if(bookLocked(p))nwA=[];else if(LS('gate',false)){const fo=firstOpen(p);nwA=nw.filter(c=>c.c.unit===fo)}
   return{learn,rev,nw:nwA.slice(0,newBudget(pid)),ahead,newAvail:nwA.length}
 }
 const counts=q=>({n:q.nw.length,l:q.learn.length+q.ahead.length,r:q.rev.length});
@@ -181,7 +188,7 @@ function render(){
 function go(t){tab=t;sess=null;render()}
 const isOpenB=(k,p)=>{const v=LS('openb',{})[k+p.id];return v===undefined?packs.length===1:v};
 function toggleB(k,id){const o=LS('openb',{});o[k+id]=!isOpenB(k,{id});LS.set('openb',o);render()}
-const bookHead=(k,p,c)=>`<div class="row" style="padding:18px 14px;margin-top:14px;border-left:5px solid ${bkc(p)}" onclick="toggleB('${k}','${p.id}')"><div class="t"><b style="font-size:18px">${esc(p.title)}</b></div>${c?`<span class="pill ${c.n?'due':''}">${c.n} new</span><span class="pill ${c.l+c.r?'due':''}">${c.l+c.r} due</span>`:''}<span style="font-size:22px;padding-left:6px">${isOpenB(k,p)?'▾':'▸'}</span></div>`;
+const bookHead=(k,p,c)=>`<div class="row" style="padding:18px 14px;margin-top:14px;border-left:5px solid ${bkc(p)}" onclick="toggleB('${k}','${p.id}')"><div class="t"><b style="font-size:18px">${esc(p.title)}</b></div>${c?(bookLocked(p)?`<span class="pill">🔒 locked</span>`:`<span class="pill ${c.n?'due':''}">${c.n} new</span>`)+`<span class="pill ${c.l+c.r?'due':''}">${c.l+c.r} due</span>`:''}<span style="font-size:22px;padding-left:6px">${isOpenB(k,p)?'▾':'▸'}</span></div>`;
 function viewStudy(){
   let h='<h2>Vocabulary decks</h2><div class="mut">Cards come only from the book\'s vocabulary tables. Each word gives 2 cards: English → Japanese and Japanese → English.</div>';
   for(const p of packs){
@@ -200,7 +207,7 @@ function next(){const q=buildQ(sess.cards,sess.p);sess.q=q;sess.cur=q.learn[0]||
 function viewSession(){
   const s=sess,c=s.cur;const k=counts(s.q);
   let h=`<div style="display:flex;gap:8px;align-items:center"><button class="sec" onclick="go('study')">←</button><b style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.title)}</b><button class="sec" style="white-space:nowrap" onclick="undo()" ${s.hist&&s.hist.length?'':'disabled'}>↶ Undo</button></div><div style="margin:8px 2px 0"><span class="pill">${k.n} new · ${k.l} learn · ${k.r} review</span></div>`;
-  if(!c){const left=s.q.newAvail>s.q.nw.length,lk=isLocked(s.p,s.unit);return h+`<div class="cardbox"><div class="mid">Done for now ✓</div><p class="mut">${s.done} cards reviewed.${lk?' New cards in this chapter unlock once all cards of the earlier chapter(s) have been introduced.':left?' Daily new-card limit reached (change in Settings).':''}</p></div>`}
+  if(!c){const left=s.q.newAvail>s.q.nw.length,lk=isLocked(s.p,s.unit),bl=bookLocked(s.p);return h+`<div class="cardbox"><div class="mid">Done for now ✓</div><p class="mut">${s.done} cards reviewed.${bl?' New cards of this book are locked until the previous book is done (see Settings). Reviews still appear here.':lk?' New cards in this chapter unlock once all cards of the earlier chapter(s) have been introduced.':left?' Daily new-card limit reached (change in Settings).':''}</p></div>`}
   const w=eff(c.c);
   const front=c.dir===0?`<div class="mut">${esc(w.grp)}</div><div class="big">${esc(w.en)}</div>`:`<div class="mut">${esc(w.grp)}</div><div class="big">${esc(w.kana)}</div>${w.kanji!==w.kana?`<div class="mid">${esc(w.kanji)}</div>`:''}`;
   const back=c.dir===0?`<div class="big">${esc(w.kana)}</div>${w.kanji!==w.kana?`<div class="mid">${esc(w.kanji)}</div>`:''}<div class="mut">${esc(w.pro)}</div>`:`<div class="big">${esc(w.en)}</div><div class="mut">${esc(w.pro)}</div>`;
@@ -340,7 +347,7 @@ function viewSet(){
   <h3>Books on this phone</h3>${packs.map(p=>`<div class="row"><div class="t"><b>${esc(p.title)}</b><div class="mut">${p.cards.length} words · pages ${rng(p,Math.max(p.first,poff(p)+1),p.last)}</div></div><button class="sec" onclick="rmPack('${p.id}')">Delete</button></div>`).join('')||'<p class="mut">None yet.</p>'}
   <h3>JLPT practice exams</h3>${exams.map(e=>`<div class="row" onclick="openExams()"><div class="t"><b>${esc(e.title)}</b><div class="mut">${e.sections.length} sections · timed · scored automatically</div></div><span class="mut">▸</span></div>`).join('')||'<p class="mut">None yet. Import an exam file (.pack) with the button below.</p>'}
   <p><label class="btn" style="display:inline-block">Import book or exam file (.pack)<input type="file" style="display:none" onchange="doImport(this.files[0])"></label></p><div id="msg" class="mut"></div>
-  <h3>Appearance</h3><p>Theme: <select onchange="LS.set('theme',this.value);applyTheme()"><option value="dark" ${LS('theme','dark')==='dark'?'selected':''}>Dark</option><option value="light" ${LS('theme','dark')==='light'?'selected':''}>Light</option></select></p><h3>Study</h3><p>New cards per day (per book): <input type="number" min="0" max="200" value="${LS('newlimit',20)}" onchange="LS.set('newlimit',Math.max(0,+this.value||0))"></p>
+  <h3>Appearance</h3><p>Theme: <select onchange="LS.set('theme',this.value);applyTheme()"><option value="dark" ${LS('theme','dark')==='dark'?'selected':''}>Dark</option><option value="light" ${LS('theme','dark')==='light'?'selected':''}>Light</option></select></p><h3>Book order & locking</h3><p><label><input type="checkbox" ${LS('autolock',false)?'checked':''} onchange="LS.set('autolock',this.checked);render()"> Lock each book until the one before it is done</label></p><p class="mut" style="font-size:13px">A book counts as done when all its cards have been introduced. Locked books still show reviews that are due, only new cards are held back. New books are added at the end of the list, so move an easier one up with ▲.</p>${packs.map((p,i)=>`<div class="row" style="cursor:default;border-left:4px solid ${bkc(p)}"><div class="t"><b>${i+1}. ${esc(p.title)}</b><div class="mut" style="font-size:12px">${lockLabel(p)}</div></div><button class="sec" onclick="moveBook('${p.id}',-1)" ${i===0?'disabled':''}>▲</button><button class="sec" onclick="moveBook('${p.id}',1)" ${i===packs.length-1?'disabled':''}>▼</button><select onchange="setBookState('${p.id}',this.value)"><option value="auto" ${bookState(p)==='auto'?'selected':''}>Auto</option><option value="locked" ${bookState(p)==='locked'?'selected':''}>Locked</option><option value="open" ${bookState(p)==='open'?'selected':''}>Open</option></select></div>`).join('')}<h3>Study</h3><p>New cards per day (per book): <input type="number" min="0" max="200" value="${LS('newlimit',20)}" onchange="LS.set('newlimit',Math.max(0,+this.value||0))"></p>
   <p><label><input type="checkbox" ${LS('gate',false)?'checked':''} onchange="LS.set('gate',this.checked)"> Unlock chapters in order (new cards of a chapter only after every card of the earlier chapters has been introduced)</label></p><p><label><input type="checkbox" ${LS('hidedup',true)?'checked':''} onchange="LS.set('hidedup',this.checked);render()"> Hide cards whose word already exists in an earlier book</label></p><h3>Backup</h3><p class="mut">Your progress (card schedule, notes, ticks) lives only on this phone. Export a backup now and then.</p>
   <button onclick="exportBk()">Export backup</button> <label class="btn" style="display:inline-block;background:var(--card);color:var(--fg);border:1px solid var(--bd)">Restore backup<input type="file" style="display:none" onchange="importBk(this.files[0])"></label>
   <h3>Reset</h3><button class="sec" onclick="if(confirm('Erase ALL progress and notes?')){['srs','notes','ans','edits','log','exres','done','pos','newcnt'].forEach(k=>localStorage.removeItem(k));render()}">Erase progress</button>`;
